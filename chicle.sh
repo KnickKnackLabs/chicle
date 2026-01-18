@@ -40,15 +40,53 @@ chicle_input() {
     esac
   done
 
+  local value="" char=""
+
+  # Helper to read one character (shell-agnostic)
+  _read_char() {
+    if [[ -n "$ZSH_VERSION" ]]; then
+      read -rsk1 char
+    else
+      read -rsn1 char
+    fi
+  }
+
   if [[ -n "$placeholder" ]]; then
-    printf "%b%s%b" "$CHICLE_DIM" "$placeholder" "$CHICLE_RESET"
-    printf "\r%s" "$prompt"
+    printf "%s%b%s%b" "$prompt" "$CHICLE_DIM" "$placeholder" "$CHICLE_RESET"
+    printf "\r\033[%dC" "${#prompt}"  # Move cursor to after prompt
+
+    while true; do
+      _read_char
+
+      if [[ "$char" == $'\n' || "$char" == '' ]]; then
+        break
+      elif [[ "$char" == $'\x7f' || "$char" == $'\x08' ]]; then
+        # Backspace
+        if [[ -n "$value" ]]; then
+          value="${value%?}"
+          if [[ -z "$value" ]]; then
+            # Show placeholder again when empty
+            printf "\r\033[K%s%b%s%b" "$prompt" "$CHICLE_DIM" "$placeholder" "$CHICLE_RESET"
+            printf "\r\033[%dC" "${#prompt}"
+          else
+            printf "\r\033[K%s%s" "$prompt" "$value"
+          fi
+        fi
+      else
+        # First char clears placeholder
+        if [[ -z "$value" ]]; then
+          printf "\r\033[K%s" "$prompt"
+        fi
+        value+="$char"
+        printf "%s" "$char"
+      fi
+    done
+    printf "\n"
   else
     printf "%s" "$prompt"
+    IFS= read -r value
   fi
 
-  local value
-  read -r value
   echo "$value"
 }
 
