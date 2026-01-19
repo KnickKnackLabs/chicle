@@ -15,7 +15,7 @@ _chicle_read_char() {
   if [[ -n "$ZSH_VERSION" ]]; then
     read -rsk1 "$1"
   else
-    read -rsn1 "$1"
+    IFS= read -rsn1 "$1"
   fi
 }
 
@@ -208,20 +208,27 @@ chicle_spin() {
 }
 
 # Interactive chooser with arrow keys
-# Usage: chicle_choose [--header TEXT] OPTION1 OPTION2 ...
+# Usage: chicle_choose [--header TEXT] [--multi] OPTION1 OPTION2 ...
 chicle_choose() {
-  local header="" options=()
+  local header="" multi="" options=()
   while [[ $# -gt 0 ]]; do
     case $1 in
       --header) header="$2"; shift 2 ;;
+      --multi) multi=1; shift ;;
       *) options+=("$1"); shift ;;
     esac
   done
 
-  local selected=0
+  local cursor=0
   local count=${#options[@]}
+  local selections=()  # Track selected indices in multi mode
 
   [[ $count -eq 0 ]] && return 1
+
+  # Initialize selections array (all unselected)
+  for ((i=0; i<count; i++)); do
+    selections+=("")
+  done
 
   # Save cursor position and hide cursor
   tput sc
@@ -230,6 +237,29 @@ chicle_choose() {
   # Enable raw mode
   stty -echo -icanon
 
+  _sel_idx() {
+    # zsh arrays are 1-indexed, bash are 0-indexed
+    if [[ -n "$ZSH_VERSION" ]]; then
+      echo $(($1 + 1))
+    else
+      echo $1
+    fi
+  }
+
+  _is_selected() {
+    local idx=$(_sel_idx $1)
+    [[ -n "${selections[$idx]}" ]]
+  }
+
+  _toggle_selection() {
+    local idx=$(_sel_idx $1)
+    if [[ -n "${selections[$idx]}" ]]; then
+      selections[$idx]=""
+    else
+      selections[$idx]=1
+    fi
+  }
+
   draw_menu() {
     tput rc  # Restore cursor to saved position
 
@@ -237,10 +267,22 @@ chicle_choose() {
 
     local i=0
     for opt in "${options[@]}"; do
-      if [[ $i -eq $selected ]]; then
-        printf "%b❯ %s%b\n" "$CHICLE_CYAN" "$opt" "$CHICLE_RESET"
+      if [[ -n "$multi" ]]; then
+        # Multi-select mode: show checkboxes
+        local checkbox="[ ]"
+        _is_selected $i && checkbox="[x]"
+        if [[ $i -eq $cursor ]]; then
+          printf "%b❯ %s %s%b\n" "$CHICLE_CYAN" "$checkbox" "$opt" "$CHICLE_RESET"
+        else
+          printf "  %s %s\n" "$checkbox" "$opt"
+        fi
       else
-        printf "  %s\n" "$opt"
+        # Single-select mode
+        if [[ $i -eq $cursor ]]; then
+          printf "%b❯ %s%b\n" "$CHICLE_CYAN" "$opt" "$CHICLE_RESET"
+        else
+          printf "  %s\n" "$opt"
+        fi
       fi
       ((i++))
     done
@@ -254,9 +296,12 @@ chicle_choose() {
     if [[ $key == $'\x1b' ]]; then
       _chicle_read_chars 2 key
       case $key in
-        '[A') ((selected > 0)) && ((selected--)) ;;           # Up
-        '[B') ((selected < count - 1)) && ((selected++)) ;;   # Down
+        '[A') ((cursor > 0)) && ((cursor--)) ;;           # Up
+        '[B') ((cursor < count - 1)) && ((cursor++)) ;;   # Down
       esac
+      draw_menu
+    elif [[ $key == ' ' && -n "$multi" ]]; then  # Space toggles in multi mode
+      _toggle_selection $cursor
       draw_menu
     elif [[ $key == '' || $key == $'\n' ]]; then  # Enter
       break
@@ -271,11 +316,23 @@ chicle_choose() {
   stty echo icanon
   tput cnorm
 
-  # zsh arrays are 1-indexed, bash arrays are 0-indexed
-  if [[ -n "$ZSH_VERSION" ]]; then
-    echo "${options[$((selected + 1))]}"
+  if [[ -n "$multi" ]]; then
+    # Output all selected items, newline-separated
+    local i=0
+    for opt in "${options[@]}"; do
+      if _is_selected $i; then
+        echo "$opt"
+      fi
+      ((i++))
+    done
   else
-    echo "${options[$selected]}"
+    # Single select: output the one item at cursor
+    # zsh arrays are 1-indexed, bash arrays are 0-indexed
+    if [[ -n "$ZSH_VERSION" ]]; then
+      echo "${options[$((cursor + 1))]}"
+    else
+      echo "${options[$cursor]}"
+    fi
   fi
 }
 
