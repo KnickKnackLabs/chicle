@@ -47,22 +47,36 @@ chicle_style() {
 }
 
 # Prompt for text input
-# Usage: chicle_input [--placeholder TEXT] [--prompt TEXT]
+# Usage: chicle_input [--placeholder TEXT] [--prompt TEXT] [--password] [--mask [CHAR]]
 chicle_input() {
-  local placeholder="" prompt="> "
+  local placeholder="" prompt="> " password="" mask=""
   while [[ $# -gt 0 ]]; do
     case $1 in
       --placeholder) placeholder="$2"; shift 2 ;;
       --prompt) prompt="$2"; shift 2 ;;
+      --password) password=1; shift ;;
+      --mask)
+        password=1
+        if [[ -n "$2" && "$2" != --* ]]; then
+          mask="$2"; shift 2
+        else
+          mask="•"; shift
+        fi
+        ;;
       *) shift ;;
     esac
   done
 
   local value="" char=""
 
-  if [[ -n "$placeholder" ]]; then
-    printf "%s%b%s%b" "$prompt" "$CHICLE_DIM" "$placeholder" "$CHICLE_RESET"
-    printf "\r\033[%dC" "${#prompt}"  # Move cursor to after prompt
+  # Password mode or placeholder mode both need character-by-character reading
+  if [[ -n "$password" || -n "$placeholder" ]]; then
+    if [[ -n "$placeholder" ]]; then
+      printf "%s%b%s%b" "$prompt" "$CHICLE_DIM" "$placeholder" "$CHICLE_RESET"
+      printf "\r\033[%dC" "${#prompt}"  # Move cursor to after prompt
+    else
+      printf "%s" "$prompt"
+    fi
 
     while true; do
       _chicle_read_char char
@@ -73,21 +87,33 @@ chicle_input() {
         # Backspace
         if [[ -n "$value" ]]; then
           value="${value%?}"
-          if [[ -z "$value" ]]; then
+          if [[ -n "$placeholder" && -z "$value" ]]; then
             # Show placeholder again when empty
             printf "\r\033[K%s%b%s%b" "$prompt" "$CHICLE_DIM" "$placeholder" "$CHICLE_RESET"
             printf "\r\033[%dC" "${#prompt}"
-          else
+          elif [[ -n "$mask" ]]; then
+            # Redraw masked value
+            printf "\r\033[K%s%s" "$prompt" "$(printf '%*s' "${#value}" '' | tr ' ' "$mask")"
+          elif [[ -z "$password" ]]; then
+            # Normal mode - redraw value
             printf "\r\033[K%s%s" "$prompt" "$value"
+          else
+            # Password mode without mask - just move cursor back
+            printf "\b \b"
           fi
         fi
       else
         # First char clears placeholder
-        if [[ -z "$value" ]]; then
+        if [[ -n "$placeholder" && -z "$value" ]]; then
           printf "\r\033[K%s" "$prompt"
         fi
         value+="$char"
-        printf "%s" "$char"
+        if [[ -n "$mask" ]]; then
+          printf "%s" "$mask"
+        elif [[ -z "$password" ]]; then
+          printf "%s" "$char"
+        fi
+        # Password without mask: print nothing
       fi
     done
     printf "\n"
