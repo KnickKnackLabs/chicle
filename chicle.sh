@@ -415,3 +415,53 @@ chicle_steps() {
       ;;
   esac
 }
+
+# Progress bar with in-place updating
+# Usage: chicle_progress --percent N [--title TEXT] [--width W]
+#    or: chicle_progress --current N --total M [--title TEXT] [--width W]
+chicle_progress() {
+  local percent="" current="" total="" title="" width=""
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      --percent) percent="$2"; shift 2 ;;
+      --current) current="$2"; shift 2 ;;
+      --total) total="$2"; shift 2 ;;
+      --title) title="$2"; shift 2 ;;
+      --width) width="$2"; shift 2 ;;
+      *) shift ;;
+    esac
+  done
+
+  # Calculate percent from current/total if not given directly
+  if [[ -z "$percent" && -n "$current" && -n "$total" && "$total" -gt 0 ]]; then
+    percent=$((current * 100 / total))
+  fi
+
+  [[ -z "$percent" ]] && percent=0
+  [[ $percent -gt 100 ]] && percent=100
+  [[ $percent -lt 0 ]] && percent=0
+
+  # Auto-calculate bar width: terminal width minus title, percentage, brackets, spaces
+  if [[ -z "$width" ]]; then
+    local cols
+    cols=$(tput cols 2>/dev/null || echo 80)
+    # Reserve space for: title + space + [ + ] + space + 100% (4 chars)
+    local reserved=$(( ${#title} + 8 ))
+    width=$((cols - reserved))
+    [[ $width -lt 10 ]] && width=10
+    [[ $width -gt 50 ]] && width=50
+  fi
+
+  local filled=$((percent * width / 100))
+  local empty=$((width - filled))
+
+  local bar=""
+  for ((i=0; i<filled; i++)); do bar+="█"; done
+  for ((i=0; i<empty; i++)); do bar+="░"; done
+
+  local color="$CHICLE_CYAN"
+  [[ $percent -eq 100 ]] && color="$CHICLE_GREEN"
+
+  # Print with \r to update in place (no newline)
+  printf "\r%s %b[%s]%b %3d%%" "$title" "$color" "$bar" "$CHICLE_RESET" "$percent"
+}
