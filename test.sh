@@ -73,6 +73,27 @@ output=$(chicle_rule --char "=")
 [[ "$output" == *"="* ]] && pass "--char =" || fail "--char =" "=" "$output"
 
 
+echo "Testing chicle_log..."
+
+output=$(chicle_log --info "test")
+[[ "$output" == *"ℹ"*"test"* ]] && pass "--info" || fail "--info" "ℹ test" "$output"
+
+output=$(chicle_log --success "test")
+[[ "$output" == *"✓"*"test"* ]] && pass "--success" || fail "--success" "✓ test" "$output"
+
+output=$(chicle_log --warn "test")
+[[ "$output" == *"⚠"*"test"* ]] && pass "--warn" || fail "--warn" "⚠ test" "$output"
+
+output=$(chicle_log --error "test")
+[[ "$output" == *"✗"*"test"* ]] && pass "--error" || fail "--error" "✗ test" "$output"
+
+output=$(chicle_log --debug "test")
+[[ "$output" == *"·"*"test"* ]] && pass "--debug" || fail "--debug" "· test" "$output"
+
+output=$(chicle_log --step "test")
+[[ "$output" == *"→"*"test"* ]] && pass "--step" || fail "--step" "→ test" "$output"
+
+
 # ============================================================================
 # Interactive tests (expect)
 # ============================================================================

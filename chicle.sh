@@ -345,3 +345,27 @@ chicle_rule() {
   cols=$(tput cols)
   printf '%*s\n' "$cols" '' | tr ' ' "$char"
 }
+
+# Styled log output with icons
+# Usage: chicle_log --info|--success|--warn|--error|--debug|--step MESSAGE
+chicle_log() {
+  local level="" message=""
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      --info|--success|--warn|--error|--debug|--step)
+        level="${1#--}"; shift ;;
+      *)
+        message="$1"; shift ;;
+    esac
+  done
+
+  case $level in
+    info)    printf "%b%s%b %s\n" "$CHICLE_CYAN"   "ℹ" "$CHICLE_RESET" "$message" ;;
+    success) printf "%b%s%b %s\n" "$CHICLE_GREEN"  "✓" "$CHICLE_RESET" "$message" ;;
+    warn)    printf "%b%s%b %s\n" "$CHICLE_YELLOW" "⚠" "$CHICLE_RESET" "$message" ;;
+    error)   printf "%b%s%b %s\n" "$CHICLE_RED"    "✗" "$CHICLE_RESET" "$message" ;;
+    debug)   printf "%b%s %s%b\n" "$CHICLE_DIM"    "·" "$message" "$CHICLE_RESET" ;;
+    step)    printf "%b%s %s%b\n" "$CHICLE_BOLD"   "→" "$message" "$CHICLE_RESET" ;;
+    *)       printf "%s\n" "$message" ;;
+  esac
+}
