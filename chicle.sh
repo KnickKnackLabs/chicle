@@ -369,3 +369,49 @@ chicle_log() {
     *)       printf "%s\n" "$message" ;;
   esac
 }
+
+# Step indicator for multi-step processes
+# Usage: chicle_steps --current N --total M [--title TEXT] [--style numeric|dots|progress]
+chicle_steps() {
+  local current=0 total=0 title="" style="numeric"
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      --current) current="$2"; shift 2 ;;
+      --total) total="$2"; shift 2 ;;
+      --title) title="$2"; shift 2 ;;
+      --style) style="$2"; shift 2 ;;
+      *) shift ;;
+    esac
+  done
+
+  [[ $total -eq 0 ]] && return 1
+
+  case $style in
+    numeric)
+      printf "%b[%d/%d]%b %s\n" "$CHICLE_BOLD" "$current" "$total" "$CHICLE_RESET" "$title"
+      ;;
+    dots)
+      local dots=""
+      for ((i=1; i<=total; i++)); do
+        if [[ $i -le $current ]]; then
+          dots+="●"
+        else
+          dots+="○"
+        fi
+        [[ $i -lt $total ]] && dots+=" "
+      done
+      printf "%b%s%b  %s\n" "$CHICLE_CYAN" "$dots" "$CHICLE_RESET" "$title"
+      ;;
+    progress)
+      local filled=$((current * 5 / total))
+      local empty=$((5 - filled))
+      local bar=""
+      for ((i=0; i<filled; i++)); do bar+="█"; done
+      for ((i=0; i<empty; i++)); do bar+="░"; done
+      printf "%b[%s]%b %s\n" "$CHICLE_CYAN" "$bar" "$CHICLE_RESET" "$title"
+      ;;
+    *)
+      printf "[%d/%d] %s\n" "$current" "$total" "$title"
+      ;;
+  esac
+}

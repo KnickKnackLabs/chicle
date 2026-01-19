@@ -94,6 +94,21 @@ output=$(chicle_log --step "test")
 [[ "$output" == *"→"*"test"* ]] && pass "--step" || fail "--step" "→ test" "$output"
 
 
+echo "Testing chicle_steps..."
+
+output=$(chicle_steps --current 2 --total 5 --title "Installing")
+[[ "$output" == *"[2/5]"*"Installing"* ]] && pass "numeric style" || fail "numeric style" "[2/5] Installing" "$output"
+
+output=$(chicle_steps --current 2 --total 5 --title "Installing" --style dots)
+[[ "$output" == *"● ●"*"○"*"Installing"* ]] && pass "dots style" || fail "dots style" "● ● ○ Installing" "$output"
+
+output=$(chicle_steps --current 3 --total 5 --title "Installing" --style progress)
+[[ "$output" == *"███"*"░░"*"Installing"* ]] && pass "progress style" || fail "progress style" "[███░░] Installing" "$output"
+
+output=$(chicle_steps --current 5 --total 5 --title "Done" --style progress)
+[[ "$output" == *"█████"* ]] && pass "progress 100%" || fail "progress 100%" "[█████]" "$output"
+
+
 # ============================================================================
 # Interactive tests (expect)
 # ============================================================================
