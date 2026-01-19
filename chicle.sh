@@ -10,6 +10,24 @@ CHICLE_GREEN='\033[32m'
 CHICLE_YELLOW='\033[33m'
 CHICLE_RED='\033[31m'
 
+# Shell-agnostic character reading helpers
+_chicle_read_char() {
+  if [[ -n "$ZSH_VERSION" ]]; then
+    read -rsk1 "$1"
+  else
+    read -rsn1 "$1"
+  fi
+}
+
+_chicle_read_chars() {
+  local count="$1" var="$2"
+  if [[ -n "$ZSH_VERSION" ]]; then
+    read -rsk"$count" "$var"
+  else
+    read -rsn"$count" "$var"
+  fi
+}
+
 # Style text with formatting
 # Usage: chicle_style [--bold] [--dim] [--color COLOR] TEXT
 chicle_style() {
@@ -42,21 +60,12 @@ chicle_input() {
 
   local value="" char=""
 
-  # Helper to read one character (shell-agnostic)
-  _read_char() {
-    if [[ -n "$ZSH_VERSION" ]]; then
-      read -rsk1 char
-    else
-      read -rsn1 char
-    fi
-  }
-
   if [[ -n "$placeholder" ]]; then
     printf "%s%b%s%b" "$prompt" "$CHICLE_DIM" "$placeholder" "$CHICLE_RESET"
     printf "\r\033[%dC" "${#prompt}"  # Move cursor to after prompt
 
     while true; do
-      _read_char
+      _chicle_read_char char
 
       if [[ "$char" == $'\n' || "$char" == '' ]]; then
         break
@@ -178,28 +187,30 @@ chicle_choose() {
 
     [[ -n "$header" ]] && printf "%b%s%b\n" "$CHICLE_BOLD" "$header" "$CHICLE_RESET"
 
-    for i in "${!options[@]}"; do
+    local i=0
+    for opt in "${options[@]}"; do
       if [[ $i -eq $selected ]]; then
-        printf "%b❯ %s%b\n" "$CHICLE_CYAN" "${options[$i]}" "$CHICLE_RESET"
+        printf "%b❯ %s%b\n" "$CHICLE_CYAN" "$opt" "$CHICLE_RESET"
       else
-        printf "  %s\n" "${options[$i]}"
+        printf "  %s\n" "$opt"
       fi
+      ((i++))
     done
   }
 
   draw_menu
 
   while true; do
-    read -rsn1 key
+    _chicle_read_char key
 
     if [[ $key == $'\x1b' ]]; then
-      read -rsn2 key
+      _chicle_read_chars 2 key
       case $key in
         '[A') ((selected > 0)) && ((selected--)) ;;           # Up
         '[B') ((selected < count - 1)) && ((selected++)) ;;   # Down
       esac
       draw_menu
-    elif [[ $key == '' ]]; then  # Enter
+    elif [[ $key == '' || $key == $'\n' ]]; then  # Enter
       break
     elif [[ $key == 'q' ]]; then  # Quit
       stty echo icanon
@@ -212,7 +223,12 @@ chicle_choose() {
   stty echo icanon
   tput cnorm
 
-  echo "${options[$selected]}"
+  # zsh arrays are 1-indexed, bash arrays are 0-indexed
+  if [[ -n "$ZSH_VERSION" ]]; then
+    echo "${options[$((selected + 1))]}"
+  else
+    echo "${options[$selected]}"
+  fi
 }
 
 # Print a horizontal rule
