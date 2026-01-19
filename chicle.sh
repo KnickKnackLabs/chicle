@@ -137,18 +137,40 @@ chicle_spin() {
 
   local frames=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
 
-  "$@" &
-  local pid=$!
+  if [[ -n "$ZSH_VERSION" ]]; then
+    # zsh: disable monitor option
+    setopt LOCAL_OPTIONS NO_MONITOR
+    "$@" &
+    local pid=$!
 
-  local i=0
-  while kill -0 "$pid" 2>/dev/null; do
-    printf "\r%b%s%b %s" "$CHICLE_CYAN" "${frames[$i]}" "$CHICLE_RESET" "$title"
-    i=$(( (i + 1) % ${#frames[@]} ))
-    sleep 0.1
-  done
+    local i=0
+    while kill -0 "$pid" 2>/dev/null; do
+      printf "\r%b%s%b %s" "$CHICLE_CYAN" "${frames[$i]}" "$CHICLE_RESET" "$title"
+      i=$(( (i + 1) % ${#frames[@]} ))
+      sleep 0.1
+    done
 
-  wait "$pid"
-  local exit_code=$?
+    wait "$pid"
+    local exit_code=$?
+  else
+    # bash: use disown + temp file for exit code, suppress job messages
+    local tmpfile="${TMPDIR:-/tmp}/chicle_spin.$$"
+    { ( "$@"; echo $? > "$tmpfile" ) & } 2>/dev/null
+    local pid=$!
+    disown "$pid" 2>/dev/null
+
+    local i=0
+    while kill -0 "$pid" 2>/dev/null; do
+      printf "\r%b%s%b %s" "$CHICLE_CYAN" "${frames[$i]}" "$CHICLE_RESET" "$title"
+      i=$(( (i + 1) % ${#frames[@]} ))
+      sleep 0.1
+    done
+
+    # Small delay to ensure exit code is written
+    sleep 0.05
+    local exit_code=$(cat "$tmpfile" 2>/dev/null || echo 1)
+    rm -f "$tmpfile"
+  fi
 
   if [[ $exit_code -eq 0 ]]; then
     printf "\r%b✓%b %s\n" "$CHICLE_GREEN" "$CHICLE_RESET" "$title"
