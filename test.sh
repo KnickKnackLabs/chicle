@@ -109,6 +109,21 @@ output=$(chicle_steps --current 5 --total 5 --title "Done" --style progress)
 [[ "$output" == *"█████"* ]] && pass "progress 100%" || fail "progress 100%" "[█████]" "$output"
 
 
+echo "Testing chicle_progress..."
+
+output=$(chicle_progress --percent 50 --title "Test" --width 10)
+[[ "$output" == *"█████"*"░░░░░"* ]] && pass "--percent 50" || fail "--percent 50" "█████░░░░░" "$output"
+
+output=$(chicle_progress --percent 100 --title "Test" --width 10)
+[[ "$output" == *"██████████"*"100%"* ]] && pass "--percent 100" || fail "--percent 100" "██████████ 100%" "$output"
+
+output=$(chicle_progress --current 3 --total 10 --title "Test" --width 10)
+[[ "$output" == *"███"*"░░░░░░░"*"30%"* ]] && pass "--current/--total" || fail "--current/--total" "███░░░░░░░ 30%" "$output"
+
+output=$(chicle_progress --percent 0 --title "Test" --width 10)
+[[ "$output" == *"░░░░░░░░░░"*"0%"* ]] && pass "--percent 0" || fail "--percent 0" "░░░░░░░░░░ 0%" "$output"
+
+
 # ============================================================================
 # Interactive tests (expect)
 # ============================================================================
