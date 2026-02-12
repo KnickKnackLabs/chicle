@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+#MISE description="Build a specific shell version from source into .shells/"
+#MISE usage="install-shell <shell> <version>"
+
+set -e
+
+SHELL_NAME="${1:?Usage: mise run install-shell <shell> <version>}"
+VERSION="${2:?Usage: mise run install-shell <shell> <version>}"
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+SHELLS_DIR="$ROOT_DIR/.shells"
+TARGET="${SHELL_NAME}-${VERSION}"
+PREFIX="$SHELLS_DIR/$TARGET"
+
+# Check if already built
+if [[ -x "$PREFIX/bin/$SHELL_NAME" ]]; then
+  echo "$TARGET is already installed at $PREFIX/bin/$SHELL_NAME"
+  "$PREFIX/bin/$SHELL_NAME" --version 2>&1 | head -1
+  exit 0
+fi
+
+case "$SHELL_NAME" in
+  bash)
+    TARBALL="bash-${VERSION}.tar.gz"
+    URL="https://ftp.gnu.org/gnu/bash/$TARBALL"
+    ;;
+  zsh)
+    TARBALL="zsh-${VERSION}.tar.xz"
+    URL="https://sourceforge.net/projects/zsh/files/zsh/${VERSION}/$TARBALL/download"
+    ;;
+  *)
+    echo "Unsupported shell: $SHELL_NAME"
+    echo "Supported: bash, zsh"
+    exit 1
+    ;;
+esac
+
+echo "Building $TARGET from source..."
+
+# Old bash versions use K&R-style C that modern Clang (15+) rejects.
+# Suppress the specific diagnostics that became hard errors.
+# See: https://lists.gnu.org/archive/html/bug-bash/2023-03/msg00094.html
+EXTRA_CFLAGS=""
+if [[ "$SHELL_NAME" == "bash" ]]; then
+  major="${VERSION%%.*}"
+  if [[ "$major" -lt 5 ]]; then
+    # Bash 3.x/4.x were written for C89. Modern Clang rejects K&R-style code
+    # as errors. Using -std=gnu89 is the cleanest fix — it tells the compiler
+    # to accept the code as it was written.
+    EXTRA_CFLAGS="-std=gnu89"
+  fi
+fi
+
+WORK_DIR=$(mktemp -d)
+trap 'rm -rf "$WORK_DIR"' EXIT
+
+cd "$WORK_DIR"
+echo "Downloading $URL..."
+curl -fSL -o "$TARBALL" "$URL"
+
+echo "Extracting..."
+tar xf "$TARBALL"
+
+# Find the extracted directory (handles both bash-X.Y and zsh-X.Y naming)
+SRC_DIR=$(find . -maxdepth 1 -type d -name "${SHELL_NAME}-*" | head -1)
+if [[ -z "$SRC_DIR" ]]; then
+  echo "Error: could not find extracted source directory"
+  ls -la
+  exit 1
+fi
+
+cd "$SRC_DIR"
+
+echo "Configuring (prefix=$PREFIX)..."
+if [[ -n "$EXTRA_CFLAGS" ]]; then
+  echo "  (using CFLAGS for old source compatibility)"
+  # Pass to configure so they're embedded in the Makefile.
+  # Also export CFLAGS_FOR_BUILD for build-time tools (e.g. bashversion).
+  export CFLAGS_FOR_BUILD="$EXTRA_CFLAGS"
+  ./configure --prefix="$PREFIX" CFLAGS="$EXTRA_CFLAGS" 2>&1 | tail -5
+else
+  ./configure --prefix="$PREFIX" 2>&1 | tail -5
+fi
+
+NPROC=$(sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 4)
+
+echo "Building..."
+make -j"$NPROC" 2>&1 | tail -5
+
+echo "Installing..."
+make install 2>&1 | tail -5
+
+echo ""
+echo "Installed $TARGET:"
+"$PREFIX/bin/$SHELL_NAME" --version 2>&1 | head -1
+echo "Binary: $PREFIX/bin/$SHELL_NAME"

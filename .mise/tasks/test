@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+#MISE description="Run tests with a specific shell target"
+#MISE usage="test [target]"
+
+set -e
+
+TARGET="${1:-}"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+SHELLS_DIR="$ROOT_DIR/.shells"
+
+run_bash_tests() {
+  local shell_bin="$1"
+  local label="$2"
+  echo ""
+  echo "══════════════════════════════════════════════════════"
+  echo "  Target: $label"
+  echo "══════════════════════════════════════════════════════"
+  "$shell_bin" "$ROOT_DIR/tests/test.sh"
+}
+
+run_pwsh_tests() {
+  echo ""
+  echo "══════════════════════════════════════════════════════"
+  echo "  Target: pwsh"
+  echo "══════════════════════════════════════════════════════"
+  mise exec -- pwsh "$ROOT_DIR/tests/test.ps1"
+}
+
+if [[ -z "$TARGET" ]]; then
+  # No target: run with default bash
+  run_bash_tests bash "bash (default)"
+
+elif [[ "$TARGET" == "pwsh" ]]; then
+  run_pwsh_tests
+
+else
+  # Target like "bash-3.2" — look in .shells/
+  SHELL_BIN="$SHELLS_DIR/$TARGET/bin/${TARGET%%-*}"
+  if [[ ! -x "$SHELL_BIN" ]]; then
+    echo "Error: $TARGET not found at $SHELL_BIN"
+    echo "Install it with: mise run install-shell ${TARGET%%-*} ${TARGET#*-}"
+    exit 1
+  fi
+  run_bash_tests "$SHELL_BIN" "$TARGET"
+fi

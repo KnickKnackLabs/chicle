@@ -1,0 +1,53 @@
+[tools]
+powershell = "7.5"
+
+# Shell versions for testing are built from source via `mise run install-shell`.
+# Installed to .shells/ (gitignored). See `mise run install-shell:all` for recommended targets.
+
+[tasks."install-shell:all"]
+description = "Install all recommended test shell targets"
+run = """
+mise run install-shell bash 3.2
+mise run install-shell bash 4.4
+mise run install-shell bash 5.2
+"""
+
+[tasks."test:all"]
+description = "Run tests across all installed shell targets"
+run = """
+#!/usr/bin/env bash
+set -e
+
+ROOT_DIR="$(pwd)"
+SHELLS_DIR="$ROOT_DIR/.shells"
+FAILED=0
+
+# Run default bash
+echo ">> default bash"
+mise run test || FAILED=1
+
+# Run each installed shell target
+if [[ -d "$SHELLS_DIR" ]]; then
+  for target_dir in "$SHELLS_DIR"/*/; do
+    target=$(basename "$target_dir")
+    echo ""
+    echo ">> $target"
+    mise run test "$target" || FAILED=1
+  done
+fi
+
+# Run PowerShell if available
+if command -v pwsh &>/dev/null || mise where powershell &>/dev/null 2>&1; then
+  echo ""
+  echo ">> pwsh"
+  mise run test pwsh || FAILED=1
+fi
+
+echo ""
+if [[ $FAILED -eq 0 ]]; then
+  echo "All targets passed."
+else
+  echo "Some targets failed."
+  exit 1
+fi
+"""

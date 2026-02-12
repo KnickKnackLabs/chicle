@@ -337,12 +337,17 @@ chicle_choose() {
 }
 
 # Print a horizontal rule
-# Usage: chicle_rule [--char CHAR]
+# Usage: chicle_rule [--char CHAR] [--width N]
 chicle_rule() {
-  local char="─"
-  [[ "$1" == "--char" ]] && char="$2"
-  local cols
-  cols=$(tput cols)
+  local char="─" width=""
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      --char) char="$2"; shift 2 ;;
+      --width) width="$2"; shift 2 ;;
+      *) shift ;;
+    esac
+  done
+  local cols="${width:-$(tput cols)}"
   printf '%*s\n' "$cols" '' | tr ' ' "$char"
 }
 

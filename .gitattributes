@@ -1,0 +1,2 @@
+# Golden files must use LF line endings (cross-platform test contract)
+tests/golden/** text eol=lf
