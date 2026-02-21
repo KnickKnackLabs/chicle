@@ -416,6 +416,158 @@ chicle_steps() {
   esac
 }
 
+# Formatted table output
+# Usage: chicle_table [--header FIELDS] [--sep CHAR] [--style box|simple] ROW1 ROW2 ...
+#    or: ... | chicle_table [--header FIELDS] [--sep CHAR] [--style box|simple]
+chicle_table() {
+  local header="" sep="," style="box" rows=()
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      --header) header="$2"; shift 2 ;;
+      --sep) sep="$2"; shift 2 ;;
+      --style) style="$2"; shift 2 ;;
+      *) rows+=("$1"); shift ;;
+    esac
+  done
+
+  # Read from stdin if no rows provided and stdin is not a terminal
+  if [[ ${#rows[@]} -eq 0 ]] && [[ ! -t 0 ]]; then
+    while IFS= read -r line; do
+      [[ -n "$line" ]] && rows+=("$line")
+    done
+  fi
+
+  [[ ${#rows[@]} -eq 0 && -z "$header" ]] && return 1
+
+  # Split a delimited string into the _fields array
+  _chicle_split() {
+    _fields=()
+    local str="$1" s="$2" tmp=""
+    while [[ "$str" == *"$s"* ]]; do
+      tmp="${str%%"$s"*}"
+      _fields+=("$tmp")
+      str="${str#*"$s"}"
+    done
+    _fields+=("$str")
+  }
+
+  # Build all data rows as arrays and calculate column widths
+  local -a widths=()
+  local -a all_rows=()
+  local ncols=0
+
+  # Process header first to establish column count
+  if [[ -n "$header" ]]; then
+    _chicle_split "$header" "$sep"
+    ncols=${#_fields[@]}
+    for ((c=0; c<ncols; c++)); do
+      widths[$c]=${#_fields[$c]}
+    done
+    all_rows+=("H:$header")
+  fi
+
+  # Process data rows
+  for row in "${rows[@]}"; do
+    _chicle_split "$row" "$sep"
+    local rc=${#_fields[@]}
+    if [[ $rc -gt $ncols ]]; then
+      ncols=$rc
+      # Extend widths array
+      for ((c=${#widths[@]}; c<ncols; c++)); do
+        widths[$c]=0
+      done
+    fi
+    for ((c=0; c<rc; c++)); do
+      local len=${#_fields[$c]}
+      [[ $len -gt ${widths[$c]:-0} ]] && widths[$c]=$len
+    done
+    all_rows+=("D:$row")
+  done
+
+  [[ $ncols -eq 0 ]] && return 1
+
+  # Render functions
+  _chicle_box_line() {
+    local left="$1" mid="$2" right="$3" fill="$4"
+    printf "%s" "$left"
+    for ((c=0; c<ncols; c++)); do
+      local w=$((widths[$c] + 2))
+      for ((i=0; i<w; i++)); do printf "%s" "$fill"; done
+      [[ $c -lt $((ncols - 1)) ]] && printf "%s" "$mid"
+    done
+    printf "%s\n" "$right"
+  }
+
+  _chicle_box_row() {
+    local row_str="$1" is_header="$2"
+    _chicle_split "$row_str" "$sep"
+    printf "│"
+    for ((c=0; c<ncols; c++)); do
+      local val="${_fields[$c]:-}"
+      local w=${widths[$c]}
+      if [[ -n "$is_header" ]]; then
+        printf " %b%-*s%b │" "$CHICLE_BOLD" "$w" "$val" "$CHICLE_RESET"
+      else
+        printf " %-*s │" "$w" "$val"
+      fi
+    done
+    printf "\n"
+  }
+
+  _chicle_simple_row() {
+    local row_str="$1" is_header="$2"
+    _chicle_split "$row_str" "$sep"
+    for ((c=0; c<ncols; c++)); do
+      local val="${_fields[$c]:-}"
+      local w=${widths[$c]}
+      if [[ -n "$is_header" ]]; then
+        printf "%b%-*s%b" "$CHICLE_BOLD" "$w" "$val" "$CHICLE_RESET"
+      else
+        printf "%-*s" "$w" "$val"
+      fi
+      [[ $c -lt $((ncols - 1)) ]] && printf "  "
+    done
+    printf "\n"
+  }
+
+  _chicle_simple_separator() {
+    for ((c=0; c<ncols; c++)); do
+      local w=${widths[$c]}
+      for ((i=0; i<w; i++)); do printf "─"; done
+      [[ $c -lt $((ncols - 1)) ]] && printf "  "
+    done
+    printf "\n"
+  }
+
+  # Render table
+  if [[ "$style" == "box" ]]; then
+    _chicle_box_line "┌" "┬" "┐" "─"
+    for entry in "${all_rows[@]}"; do
+      local type="${entry%%:*}"
+      local data="${entry#*:}"
+      if [[ "$type" == "H" ]]; then
+        _chicle_box_row "$data" 1
+        _chicle_box_line "├" "┼" "┤" "─"
+      else
+        _chicle_box_row "$data" ""
+      fi
+    done
+    _chicle_box_line "└" "┴" "┘" "─"
+  else
+    # Simple style
+    for entry in "${all_rows[@]}"; do
+      local type="${entry%%:*}"
+      local data="${entry#*:}"
+      if [[ "$type" == "H" ]]; then
+        _chicle_simple_row "$data" 1
+        _chicle_simple_separator
+      else
+        _chicle_simple_row "$data" ""
+      fi
+    done
+  fi
+}
+
 # Progress bar with in-place updating
 # Usage: chicle_progress --percent N [--title TEXT] [--width W]
 #    or: chicle_progress --current N --total M [--title TEXT] [--width W]

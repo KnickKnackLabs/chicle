@@ -124,6 +124,51 @@ output=$(chicle_progress --percent 0 --title "Test" --width 10)
 [[ "$output" == *"░░░░░░░░░░"*"0%"* ]] && pass "--percent 0" || fail "--percent 0" "░░░░░░░░░░ 0%" "$output"
 
 
+echo "Testing chicle_table..."
+
+# Test: basic table with header (box style)
+output=$(chicle_table --header "Name,Value" "foo,bar" "baz,qux")
+[[ "$output" == *"┌"* && "$output" == *"┘"* ]] && pass "box style borders" || fail "box style borders" "box borders" "$output"
+[[ "$output" == *"Name"* && "$output" == *"Value"* ]] && pass "header content" || fail "header content" "Name Value" "$output"
+[[ "$output" == *"foo"* && "$output" == *"bar"* ]] && pass "row content" || fail "row content" "foo bar" "$output"
+[[ "$output" == *"├"* && "$output" == *"┤"* ]] && pass "header separator" || fail "header separator" "├─┤" "$output"
+
+# Test: table without header
+output=$(chicle_table "a,b" "c,d")
+[[ "$output" == *"a"* && "$output" == *"b"* ]] && pass "no header - data present" || fail "no header - data present" "a b" "$output"
+# Should not contain header separator
+[[ "$output" != *"├"* ]] && pass "no header - no separator" || fail "no header - no separator" "no ├" "$output"
+
+# Test: simple style
+output=$(chicle_table --style simple --header "A,B" "1,2")
+[[ "$output" != *"┌"* && "$output" == *"A"* && "$output" == *"1"* ]] && pass "simple style" || fail "simple style" "no box chars" "$output"
+[[ "$output" == *"─"* ]] && pass "simple style separator" || fail "simple style separator" "─" "$output"
+
+# Test: custom separator
+output=$(chicle_table --sep "|" --header "A|B" "1|2")
+[[ "$output" == *"A"* && "$output" == *"B"* && "$output" == *"1"* && "$output" == *"2"* ]] && pass "custom separator" || fail "custom separator" "A B 1 2" "$output"
+
+# Test: stdin pipe support
+output=$(printf "foo,bar\nbaz,qux\n" | chicle_table --header "Name,Value")
+[[ "$output" == *"foo"* && "$output" == *"baz"* ]] && pass "stdin pipe" || fail "stdin pipe" "foo baz" "$output"
+
+# Test: column width alignment (wider data should expand column)
+output=$(chicle_table --header "X,Y" "hello,w" "hi,world")
+[[ "$output" == *"hello"* && "$output" == *"world"* ]] && pass "column alignment" || fail "column alignment" "hello world" "$output"
+
+# Test: empty input returns error
+if chicle_table 2>/dev/null; then
+  fail "empty input returns error" "non-zero exit" "0"
+else
+  pass "empty input returns error"
+fi
+
+# Test: three columns
+output=$(chicle_table --header "Package,Version,Status" "chicle,1.0,ok" "bash,5.2,ok")
+[[ "$output" == *"Package"* && "$output" == *"Version"* && "$output" == *"Status"* ]] && pass "three columns header" || fail "three columns header" "3 cols" "$output"
+[[ "$output" == *"chicle"* && "$output" == *"1.0"* && "$output" == *"ok"* ]] && pass "three columns data" || fail "three columns data" "3 cols data" "$output"
+
+
 # ============================================================================
 # Interactive tests (expect)
 # ============================================================================
