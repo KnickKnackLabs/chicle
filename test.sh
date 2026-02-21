@@ -168,6 +168,14 @@ output=$(chicle_table --header "Package,Version,Status" "chicle,1.0,ok" "bash,5.
 [[ "$output" == *"Package"* && "$output" == *"Version"* && "$output" == *"Status"* ]] && pass "three columns header" || fail "three columns header" "3 cols" "$output"
 [[ "$output" == *"chicle"* && "$output" == *"1.0"* && "$output" == *"ok"* ]] && pass "three columns data" || fail "three columns data" "3 cols data" "$output"
 
+# Test: row with fewer columns than header (uneven data)
+output=$(chicle_table --header "A,B,C" "1,2")
+[[ "$output" == *"A"* && "$output" == *"C"* && "$output" == *"1"* ]] && pass "fewer cols than header" || fail "fewer cols than header" "A C 1" "$output"
+
+# Test: header-only table (no data rows)
+output=$(chicle_table --header "Name,Value")
+[[ "$output" == *"Name"* && "$output" == *"┌"* && "$output" == *"┘"* ]] && pass "header-only table" || fail "header-only table" "Name with borders" "$output"
+
 
 # ============================================================================
 # Interactive tests (expect)

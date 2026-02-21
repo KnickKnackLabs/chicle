@@ -28,6 +28,12 @@ _chicle_read_chars() {
   fi
 }
 
+# Repeat a character N times (multi-byte safe, unlike tr)
+_chicle_repeat() {
+  local char="$1" count="$2"
+  for ((i=0; i<count; i++)); do printf "%s" "$char"; done
+}
+
 # Style text with formatting
 # Usage: chicle_style [--bold] [--dim] [--color COLOR] TEXT
 chicle_style() {
@@ -93,7 +99,7 @@ chicle_input() {
             printf "\r\033[%dC" "${#prompt}"
           elif [[ -n "$mask" ]]; then
             # Redraw masked value
-            printf "\r\033[K%s%s" "$prompt" "$(printf '%*s' "${#value}" '' | tr ' ' "$mask")"
+            printf "\r\033[K%s%s" "$prompt" "$(_chicle_repeat "$mask" "${#value}")"
           elif [[ -z "$password" ]]; then
             # Normal mode - redraw value
             printf "\r\033[K%s%s" "$prompt" "$value"
@@ -343,7 +349,8 @@ chicle_rule() {
   [[ "$1" == "--char" ]] && char="$2"
   local cols
   cols=$(tput cols)
-  printf '%*s\n' "$cols" '' | tr ' ' "$char"
+  _chicle_repeat "$char" "$cols"
+  printf '\n'
 }
 
 # Styled log output with icons
@@ -439,6 +446,8 @@ chicle_table() {
 
   [[ ${#rows[@]} -eq 0 && -z "$header" ]] && return 1
 
+  local _fields
+
   # Split a delimited string into the _fields array
   _chicle_split() {
     _fields=()
@@ -491,8 +500,7 @@ chicle_table() {
     local left="$1" mid="$2" right="$3" fill="$4"
     printf "%s" "$left"
     for ((c=0; c<ncols; c++)); do
-      local w=$((widths[$c] + 2))
-      for ((i=0; i<w; i++)); do printf "%s" "$fill"; done
+      _chicle_repeat "$fill" $((widths[$c] + 2))
       [[ $c -lt $((ncols - 1)) ]] && printf "%s" "$mid"
     done
     printf "%s\n" "$right"
@@ -532,8 +540,7 @@ chicle_table() {
 
   _chicle_simple_separator() {
     for ((c=0; c<ncols; c++)); do
-      local w=${widths[$c]}
-      for ((i=0; i<w; i++)); do printf "─"; done
+      _chicle_repeat "─" "${widths[$c]}"
       [[ $c -lt $((ncols - 1)) ]] && printf "  "
     done
     printf "\n"
