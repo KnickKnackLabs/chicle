@@ -30,7 +30,7 @@ _chicle_read_chars() {
 
 # Repeat a character N times (multi-byte safe, unlike tr)
 _chicle_repeat() {
-  local char="$1" count="$2"
+  local i char="$1" count="$2"
   for ((i=0; i<count; i++)); do printf "%s" "$char"; done
 }
 
@@ -412,9 +412,7 @@ chicle_steps() {
     progress)
       local filled=$((current * 5 / total))
       local empty=$((5 - filled))
-      local bar=""
-      for ((i=0; i<filled; i++)); do bar+="█"; done
-      for ((i=0; i<empty; i++)); do bar+="░"; done
+      local bar="$(_chicle_repeat "█" "$filled")$(_chicle_repeat "░" "$empty")"
       printf "%b[%s]%b %s\n" "$CHICLE_CYAN" "$bar" "$CHICLE_RESET" "$title"
       ;;
     *)
@@ -613,10 +611,7 @@ chicle_progress() {
 
   local filled=$((percent * width / 100))
   local empty=$((width - filled))
-
-  local bar=""
-  for ((i=0; i<filled; i++)); do bar+="█"; done
-  for ((i=0; i<empty; i++)); do bar+="░"; done
+  local bar="$(_chicle_repeat "█" "$filled")$(_chicle_repeat "░" "$empty")"
 
   local color="$CHICLE_CYAN"
   [[ $percent -eq 100 ]] && color="$CHICLE_GREEN"
