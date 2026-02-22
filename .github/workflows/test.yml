@@ -1,0 +1,42 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: "Ubuntu 22.04"
+            os: ubuntu-22.04
+          - name: "Ubuntu 24.04"
+            os: ubuntu-24.04
+          - name: "macOS (ARM)"
+            os: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install test dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y expect perl zsh
+
+      - name: Install test dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: brew install expect
+
+      - name: Show versions
+        run: |
+          echo "bash: $(bash --version | head -1)"
+          echo "zsh: $(zsh --version 2>/dev/null || echo 'not available')"
+
+      - name: Run tests
+        run: bash test.sh
+        env:
+          TERM: xterm
