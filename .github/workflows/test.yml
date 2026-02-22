@@ -14,8 +14,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: "Linux"
-            os: ubuntu-latest
+          - name: "Ubuntu 22.04"
+            os: ubuntu-22.04
+          - name: "Ubuntu 24.04"
+            os: ubuntu-24.04
           - name: "macOS (Intel)"
             os: macos-13
           - name: "macOS (ARM)"
@@ -23,15 +25,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install dependencies (Linux)
+      - name: Install test dependencies (Linux)
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y expect perl zsh
 
-      - name: Install dependencies (macOS)
+      - name: Install test dependencies (macOS)
         if: runner.os == 'macOS'
-        run: |
-          brew install expect bash
-          echo "$(brew --prefix)/bin" >> "$GITHUB_PATH"
+        run: brew install expect
 
       - name: Show versions
         run: |
@@ -40,37 +40,5 @@ jobs:
 
       - name: Run tests
         run: bash test.sh
-        env:
-          TERM: xterm
-
-  test-bash-compat:
-    name: "Linux (bash ${{ matrix.bash-version }})"
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        bash-version: ['4.4', '5.0']
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y expect perl zsh build-essential
-
-      - name: Build bash ${{ matrix.bash-version }}
-        run: |
-          curl -fsSL "https://ftp.gnu.org/gnu/bash/bash-${{ matrix.bash-version }}.tar.gz" -o bash.tar.gz
-          tar xzf bash.tar.gz
-          cd "bash-${{ matrix.bash-version }}"
-          ./configure --prefix="$HOME/bash-custom"
-          make -j"$(nproc)"
-          make install
-
-      - name: Show bash version
-        run: "$HOME/bash-custom/bin/bash" --version
-
-      - name: Run tests
-        run: |
-          export PATH="$HOME/bash-custom/bin:$PATH"
-          bash test.sh
         env:
           TERM: xterm
