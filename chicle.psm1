@@ -288,33 +288,32 @@ function Chicle-Rule {
 
 # Styled log output with icons
 # Usage: Chicle-Log [-Info|-Success|-Warn|-Error|-Debug|-Step] "MESSAGE"
+# Note: -Error and -Debug conflict with PowerShell common parameters, so we
+# use a simple function (no CmdletBinding) and parse level flags manually.
 function Chicle-Log {
-    [CmdletBinding()]
-    param(
-        [switch]$Info,
-        [switch]$Success,
-        [switch]$Warn,
-        [switch]$Error,
-        [switch]$Debug,
-        [switch]$Step,
-        [Parameter(Position = 0)]
-        [string]$Message = ""
-    )
+    $level = ""
+    $message = ""
 
-    if ($Info) {
-        "${script:CHICLE_CYAN}$([char]0x2139)${script:CHICLE_RESET} ${Message}"
-    } elseif ($Success) {
-        "${script:CHICLE_GREEN}$([char]0x2713)${script:CHICLE_RESET} ${Message}"
-    } elseif ($Warn) {
-        "${script:CHICLE_YELLOW}$([char]0x26A0)${script:CHICLE_RESET} ${Message}"
-    } elseif ($Error) {
-        "${script:CHICLE_RED}$([char]0x2717)${script:CHICLE_RESET} ${Message}"
-    } elseif ($Debug) {
-        "${script:CHICLE_DIM}$([char]0x00B7) ${Message}${script:CHICLE_RESET}"
-    } elseif ($Step) {
-        "${script:CHICLE_BOLD}$([char]0x2192) ${Message}${script:CHICLE_RESET}"
-    } else {
-        $Message
+    foreach ($arg in $args) {
+        switch ($arg) {
+            '-Info'    { $level = "info" }
+            '-Success' { $level = "success" }
+            '-Warn'    { $level = "warn" }
+            '-Error'   { $level = "error" }
+            '-Debug'   { $level = "debug" }
+            '-Step'    { $level = "step" }
+            default    { $message = $arg }
+        }
+    }
+
+    switch ($level) {
+        "info"    { "${script:CHICLE_CYAN}$([char]0x2139)${script:CHICLE_RESET} ${message}" }
+        "success" { "${script:CHICLE_GREEN}$([char]0x2713)${script:CHICLE_RESET} ${message}" }
+        "warn"    { "${script:CHICLE_YELLOW}$([char]0x26A0)${script:CHICLE_RESET} ${message}" }
+        "error"   { "${script:CHICLE_RED}$([char]0x2717)${script:CHICLE_RESET} ${message}" }
+        "debug"   { "${script:CHICLE_DIM}$([char]0x00B7) ${message}${script:CHICLE_RESET}" }
+        "step"    { "${script:CHICLE_BOLD}$([char]0x2192) ${message}${script:CHICLE_RESET}" }
+        default   { $message }
     }
 }
 

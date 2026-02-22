@@ -4,155 +4,116 @@
 BeforeAll {
     Import-Module "$PSScriptRoot/../../chicle.psm1" -Force
     $script:FIXTURES = "$PSScriptRoot/../fixtures"
+
+    # Read golden fixture files with explicit UTF-8 encoding to avoid
+    # platform-specific Get-Content quirks (BOM handling, line ending conversion)
+    function Get-Golden([string]$Name) {
+        $path = Join-Path $script:FIXTURES $Name
+        [System.IO.File]::ReadAllText($path, [System.Text.Encoding]::UTF8)
+    }
 }
 
 Describe "Chicle-Style" {
     It "applies bold" {
-        $output = Chicle-Style -Bold "hello"
-        $expected = Get-Content "$script:FIXTURES/style_bold.golden" -Raw
-        $output | Should -BeExactly $expected
+        Chicle-Style -Bold "hello" | Should -BeExactly (Get-Golden "style_bold.golden")
     }
 
     It "applies dim" {
-        $output = Chicle-Style -Dim "hello"
-        $expected = Get-Content "$script:FIXTURES/style_dim.golden" -Raw
-        $output | Should -BeExactly $expected
+        Chicle-Style -Dim "hello" | Should -BeExactly (Get-Golden "style_dim.golden")
     }
 
     It "applies cyan" {
-        $output = Chicle-Style -Cyan "hello"
-        $expected = Get-Content "$script:FIXTURES/style_cyan.golden" -Raw
-        $output | Should -BeExactly $expected
+        Chicle-Style -Cyan "hello" | Should -BeExactly (Get-Golden "style_cyan.golden")
     }
 
     It "applies green" {
-        $output = Chicle-Style -Green "hello"
-        $expected = Get-Content "$script:FIXTURES/style_green.golden" -Raw
-        $output | Should -BeExactly $expected
+        Chicle-Style -Green "hello" | Should -BeExactly (Get-Golden "style_green.golden")
     }
 
     It "applies yellow" {
-        $output = Chicle-Style -Yellow "hello"
-        $expected = Get-Content "$script:FIXTURES/style_yellow.golden" -Raw
-        $output | Should -BeExactly $expected
+        Chicle-Style -Yellow "hello" | Should -BeExactly (Get-Golden "style_yellow.golden")
     }
 
     It "applies red" {
-        $output = Chicle-Style -Red "hello"
-        $expected = Get-Content "$script:FIXTURES/style_red.golden" -Raw
-        $output | Should -BeExactly $expected
+        Chicle-Style -Red "hello" | Should -BeExactly (Get-Golden "style_red.golden")
     }
 
     It "combines bold and cyan" {
-        $output = Chicle-Style -Bold -Cyan "hello"
-        $expected = Get-Content "$script:FIXTURES/style_bold_cyan.golden" -Raw
-        $output | Should -BeExactly $expected
+        Chicle-Style -Bold -Cyan "hello" | Should -BeExactly (Get-Golden "style_bold_cyan.golden")
     }
 
     It "handles empty text" {
-        $output = Chicle-Style -Bold ""
-        $expected = Get-Content "$script:FIXTURES/style_bold_empty.golden" -Raw
-        $output | Should -BeExactly $expected
+        Chicle-Style -Bold "" | Should -BeExactly (Get-Golden "style_bold_empty.golden")
     }
 
     It "handles text only (no flags)" {
-        $output = Chicle-Style "plain"
-        $expected = Get-Content "$script:FIXTURES/style_plain.golden" -Raw
-        $output | Should -BeExactly $expected
+        Chicle-Style "plain" | Should -BeExactly (Get-Golden "style_plain.golden")
     }
 
     It "combines bold, dim, and red" {
-        $output = Chicle-Style -Bold -Dim -Red "alert"
-        $expected = Get-Content "$script:FIXTURES/style_bold_dim_red.golden" -Raw
-        $output | Should -BeExactly $expected
+        Chicle-Style -Bold -Dim -Red "alert" | Should -BeExactly (Get-Golden "style_bold_dim_red.golden")
     }
 }
 
 Describe "Chicle-Log" {
     It "logs info" {
-        $output = Chicle-Log -Info "test"
-        $expected = Get-Content "$script:FIXTURES/log_info.golden" -Raw
-        $output | Should -BeExactly $expected
+        Chicle-Log -Info "test" | Should -BeExactly (Get-Golden "log_info.golden")
     }
 
     It "logs success" {
-        $output = Chicle-Log -Success "test"
-        $expected = Get-Content "$script:FIXTURES/log_success.golden" -Raw
-        $output | Should -BeExactly $expected
+        Chicle-Log -Success "test" | Should -BeExactly (Get-Golden "log_success.golden")
     }
 
     It "logs warn" {
-        $output = Chicle-Log -Warn "test"
-        $expected = Get-Content "$script:FIXTURES/log_warn.golden" -Raw
-        $output | Should -BeExactly $expected
+        Chicle-Log -Warn "test" | Should -BeExactly (Get-Golden "log_warn.golden")
     }
 
     It "logs error" {
-        $output = Chicle-Log -Error "test"
-        $expected = Get-Content "$script:FIXTURES/log_error.golden" -Raw
-        $output | Should -BeExactly $expected
+        Chicle-Log -Error "test" | Should -BeExactly (Get-Golden "log_error.golden")
     }
 
     It "logs debug" {
-        $output = Chicle-Log -Debug "test"
-        $expected = Get-Content "$script:FIXTURES/log_debug.golden" -Raw
-        $output | Should -BeExactly $expected
+        Chicle-Log -Debug "test" | Should -BeExactly (Get-Golden "log_debug.golden")
     }
 
     It "logs step" {
-        $output = Chicle-Log -Step "test"
-        $expected = Get-Content "$script:FIXTURES/log_step.golden" -Raw
-        $output | Should -BeExactly $expected
+        Chicle-Log -Step "test" | Should -BeExactly (Get-Golden "log_step.golden")
     }
 
     It "defaults to plain with no level" {
-        $output = Chicle-Log "just text"
-        $expected = Get-Content "$script:FIXTURES/log_plain.golden" -Raw
-        $output | Should -BeExactly $expected
+        Chicle-Log "just text" | Should -BeExactly (Get-Golden "log_plain.golden")
     }
 }
 
 Describe "Chicle-Rule" {
     It "contains line char" {
-        $output = Chicle-Rule
-        $output | Should -Match ([char]0x2500)  # ─
+        Chicle-Rule | Should -Match ([char]0x2500)  # ─
     }
 
     It "uses custom char" {
-        $output = Chicle-Rule -Char "="
-        $output | Should -Match "="
+        Chicle-Rule -Char "=" | Should -Match "="
     }
 }
 
 Describe "Chicle-Steps" {
     It "renders numeric style" {
-        $output = Chicle-Steps -Current 2 -Total 5 -Title "Installing"
-        $expected = Get-Content "$script:FIXTURES/steps_numeric.golden" -Raw
-        $output | Should -BeExactly $expected
+        Chicle-Steps -Current 2 -Total 5 -Title "Installing" | Should -BeExactly (Get-Golden "steps_numeric.golden")
     }
 
     It "renders dots style" {
-        $output = Chicle-Steps -Current 2 -Total 5 -Title "Installing" -Style dots
-        $expected = Get-Content "$script:FIXTURES/steps_dots.golden" -Raw
-        $output | Should -BeExactly $expected
+        Chicle-Steps -Current 2 -Total 5 -Title "Installing" -Style dots | Should -BeExactly (Get-Golden "steps_dots.golden")
     }
 
     It "renders progress style" {
-        $output = Chicle-Steps -Current 3 -Total 5 -Title "Installing" -Style progress
-        $expected = Get-Content "$script:FIXTURES/steps_progress.golden" -Raw
-        $output | Should -BeExactly $expected
+        Chicle-Steps -Current 3 -Total 5 -Title "Installing" -Style progress | Should -BeExactly (Get-Golden "steps_progress.golden")
     }
 
     It "renders progress at 100%" {
-        $output = Chicle-Steps -Current 5 -Total 5 -Title "Done" -Style progress
-        $expected = Get-Content "$script:FIXTURES/steps_progress_full.golden" -Raw
-        $output | Should -BeExactly $expected
+        Chicle-Steps -Current 5 -Total 5 -Title "Done" -Style progress | Should -BeExactly (Get-Golden "steps_progress_full.golden")
     }
 
     It "renders 1 of 1" {
-        $output = Chicle-Steps -Current 1 -Total 1 -Title "Only step"
-        $expected = Get-Content "$script:FIXTURES/steps_one_of_one.golden" -Raw
-        $output | Should -BeExactly $expected
+        Chicle-Steps -Current 1 -Total 1 -Title "Only step" | Should -BeExactly (Get-Golden "steps_one_of_one.golden")
     }
 
     It "throws on total 0" {
@@ -160,77 +121,63 @@ Describe "Chicle-Steps" {
     }
 
     It "renders dots 0/3" {
-        $output = Chicle-Steps -Current 0 -Total 3 -Style dots
-        $expected = Get-Content "$script:FIXTURES/steps_dots_zero.golden" -Raw
-        $output | Should -BeExactly $expected
+        Chicle-Steps -Current 0 -Total 3 -Style dots | Should -BeExactly (Get-Golden "steps_dots_zero.golden")
     }
 
     It "renders dots 3/3" {
-        $output = Chicle-Steps -Current 3 -Total 3 -Style dots
-        $expected = Get-Content "$script:FIXTURES/steps_dots_full.golden" -Raw
-        $output | Should -BeExactly $expected
+        Chicle-Steps -Current 3 -Total 3 -Style dots | Should -BeExactly (Get-Golden "steps_dots_full.golden")
     }
 }
 
 Describe "Chicle-Table" {
     It "renders basic box style" {
         $output = Chicle-Table -Header "Name,Value" -Rows "foo,bar", "baz,qux"
-        $expected = Get-Content "$script:FIXTURES/table_basic_box.golden" -Raw
-        $output | Should -BeExactly $expected
+        $output | Should -BeExactly (Get-Golden "table_basic_box.golden")
     }
 
     It "renders without header" {
         $output = Chicle-Table -Rows "a,b", "c,d"
-        $expected = Get-Content "$script:FIXTURES/table_no_header.golden" -Raw
-        $output | Should -BeExactly $expected
+        $output | Should -BeExactly (Get-Golden "table_no_header.golden")
     }
 
     It "renders simple style" {
         $output = Chicle-Table -Style simple -Header "A,B" -Rows "1,2"
-        $expected = Get-Content "$script:FIXTURES/table_simple.golden" -Raw
-        $output | Should -BeExactly $expected
+        $output | Should -BeExactly (Get-Golden "table_simple.golden")
     }
 
     It "uses custom separator" {
         $output = Chicle-Table -Sep "|" -Header "A|B" -Rows "1|2"
-        $expected = Get-Content "$script:FIXTURES/table_custom_sep.golden" -Raw
-        $output | Should -BeExactly $expected
+        $output | Should -BeExactly (Get-Golden "table_custom_sep.golden")
     }
 
     It "aligns columns" {
         $output = Chicle-Table -Header "X,Y" -Rows "hello,w", "hi,world"
-        $expected = Get-Content "$script:FIXTURES/table_alignment.golden" -Raw
-        $output | Should -BeExactly $expected
+        $output | Should -BeExactly (Get-Golden "table_alignment.golden")
     }
 
     It "renders three columns" {
         $output = Chicle-Table -Header "Package,Version,Status" -Rows "chicle,1.0,ok", "bash,5.2,ok"
-        $expected = Get-Content "$script:FIXTURES/table_three_cols.golden" -Raw
-        $output | Should -BeExactly $expected
+        $output | Should -BeExactly (Get-Golden "table_three_cols.golden")
     }
 
     It "handles fewer cols than header" {
         $output = Chicle-Table -Header "A,B,C" -Rows "1,2"
-        $expected = Get-Content "$script:FIXTURES/table_fewer_cols.golden" -Raw
-        $output | Should -BeExactly $expected
+        $output | Should -BeExactly (Get-Golden "table_fewer_cols.golden")
     }
 
     It "renders header-only table" {
         $output = Chicle-Table -Header "Name,Value"
-        $expected = Get-Content "$script:FIXTURES/table_header_only.golden" -Raw
-        $output | Should -BeExactly $expected
+        $output | Should -BeExactly (Get-Golden "table_header_only.golden")
     }
 
     It "renders single column" {
         $output = Chicle-Table -Header "Name" -Rows "alice", "bob"
-        $expected = Get-Content "$script:FIXTURES/table_single_col.golden" -Raw
-        $output | Should -BeExactly $expected
+        $output | Should -BeExactly (Get-Golden "table_single_col.golden")
     }
 
     It "accepts pipeline input" {
         $output = "foo,bar", "baz,qux" | Chicle-Table -Header "Name,Value"
-        $expected = Get-Content "$script:FIXTURES/table_stdin.golden" -Raw
-        $output | Should -BeExactly $expected
+        $output | Should -BeExactly (Get-Golden "table_stdin.golden")
     }
 
     It "throws on empty input" {
