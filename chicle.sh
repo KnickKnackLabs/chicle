@@ -22,9 +22,9 @@ _chicle_read_char() {
 _chicle_read_chars() {
   local count="$1" var="$2"
   if [[ -n "$ZSH_VERSION" ]]; then
-    read -rsk"$count" "$var"
+    read -rsk"$count" "${var?}"
   else
-    read -rsn"$count" "$var"
+    read -rsn"$count" "${var?}"
   fi
 }
 
@@ -200,7 +200,8 @@ chicle_spin() {
 
     # Small delay to ensure exit code is written
     sleep 0.05
-    local exit_code=$(cat "$tmpfile" 2>/dev/null || echo 1)
+    local exit_code
+    exit_code=$(cat "$tmpfile" 2>/dev/null || echo 1)
     rm -f "$tmpfile"
   fi
 
@@ -210,7 +211,7 @@ chicle_spin() {
     printf "\r%b✗%b %s\n" "$CHICLE_RED" "$CHICLE_RESET" "$title"
   fi
 
-  return $exit_code
+  return "$exit_code"
 }
 
 # Interactive chooser with arrow keys
@@ -248,21 +249,23 @@ chicle_choose() {
     if [[ -n "$ZSH_VERSION" ]]; then
       echo $(($1 + 1))
     else
-      echo $1
+      echo "$1"
     fi
   }
 
   _is_selected() {
-    local idx=$(_sel_idx $1)
-    [[ -n "${selections[$idx]}" ]]
+    local idx
+    idx=$(_sel_idx "$1")
+    [[ -n "${selections[idx]}" ]]
   }
 
   _toggle_selection() {
-    local idx=$(_sel_idx $1)
-    if [[ -n "${selections[$idx]}" ]]; then
-      selections[$idx]=""
+    local idx
+    idx=$(_sel_idx "$1")
+    if [[ -n "${selections[idx]}" ]]; then
+      selections[idx]=""
     else
-      selections[$idx]=1
+      selections[idx]=1
     fi
   }
 
@@ -296,6 +299,7 @@ chicle_choose() {
 
   draw_menu
 
+  local key=""
   while true; do
     _chicle_read_char key
 
@@ -412,7 +416,8 @@ chicle_steps() {
     progress)
       local filled=$((current * 5 / total))
       local empty=$((5 - filled))
-      local bar="$(_chicle_repeat "█" "$filled")$(_chicle_repeat "░" "$empty")"
+      local bar
+      bar="$(_chicle_repeat "█" "$filled")$(_chicle_repeat "░" "$empty")"
       printf "%b[%s]%b %s\n" "$CHICLE_CYAN" "$bar" "$CHICLE_RESET" "$title"
       ;;
     *)
@@ -468,7 +473,7 @@ chicle_table() {
     _chicle_split "$header" "$sep"
     ncols=${#_fields[@]}
     for ((c=0; c<ncols; c++)); do
-      widths[$c]=${#_fields[$c]}
+      widths[c]=${#_fields[c]}
     done
     all_rows+=("H:$header")
   fi
@@ -481,12 +486,12 @@ chicle_table() {
       ncols=$rc
       # Extend widths array
       for ((c=${#widths[@]}; c<ncols; c++)); do
-        widths[$c]=0
+        widths[c]=0
       done
     fi
     for ((c=0; c<rc; c++)); do
-      local len=${#_fields[$c]}
-      [[ $len -gt ${widths[$c]:-0} ]] && widths[$c]=$len
+      local len=${#_fields[c]}
+      [[ $len -gt ${widths[c]:-0} ]] && widths[c]=$len
     done
     all_rows+=("D:$row")
   done
@@ -498,7 +503,7 @@ chicle_table() {
     local left="$1" mid="$2" right="$3" fill="$4"
     printf "%s" "$left"
     for ((c=0; c<ncols; c++)); do
-      _chicle_repeat "$fill" $((widths[$c] + 2))
+      _chicle_repeat "$fill" $((widths[c] + 2))
       [[ $c -lt $((ncols - 1)) ]] && printf "%s" "$mid"
     done
     printf "%s\n" "$right"
@@ -611,7 +616,8 @@ chicle_progress() {
 
   local filled=$((percent * width / 100))
   local empty=$((width - filled))
-  local bar="$(_chicle_repeat "█" "$filled")$(_chicle_repeat "░" "$empty")"
+  local bar
+  bar="$(_chicle_repeat "█" "$filled")$(_chicle_repeat "░" "$empty")"
 
   local color="$CHICLE_CYAN"
   [[ $percent -eq 100 ]] && color="$CHICLE_GREEN"
