@@ -383,9 +383,9 @@ function Chicle-Table {
             throw "No data provided"
         }
 
-        # Split helper
+        # Split helper — returns array. The leading comma forces PowerShell to
+        # preserve single-element arrays instead of unwrapping to a scalar.
         function _split([string]$str, [string]$s) {
-            # Manual split to match bash behavior exactly
             $result = [System.Collections.Generic.List[string]]::new()
             while ($str.Contains($s)) {
                 $idx = $str.IndexOf($s)
@@ -393,7 +393,7 @@ function Chicle-Table {
                 $str = $str.Substring($idx + $s.Length)
             }
             $result.Add($str)
-            $result.ToArray()
+            , $result.ToArray()
         }
 
         # Build all data rows and calculate column widths
