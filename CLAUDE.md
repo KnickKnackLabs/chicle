@@ -18,6 +18,10 @@ Single file library (`chicle.sh`) that scripts can source. All functions are pre
 | `chicle_choose` | Interactive arrow-key menu picker |
 | `chicle_spin` | Spinner animation while command runs |
 | `chicle_rule` | Print horizontal line |
+| `chicle_log` | Styled log output with icons |
+| `chicle_steps` | Step indicator for multi-step processes |
+| `chicle_table` | Formatted table output |
+| `chicle_progress` | Progress bar with in-place updating |
 
 ### Terminal Control
 
@@ -27,13 +31,21 @@ Single file library (`chicle.sh`) that scripts can source. All functions are pre
 
 ## Testing
 
-Manual testing - source the library and try each function:
+Run the automated test suite:
 
 ```bash
-source chicle.sh
-chicle_style --bold --cyan "Test"
-chicle_confirm "Works?"
-chicle_choose "A" "B" "C"
+bash test.sh
+```
+
+Tests require `TERM` to be set (CI uses `TERM=xterm`). Interactive tests (chicle_choose, chicle_confirm, chicle_input) require `expect` and `perl`. Zsh compatibility tests additionally require `zsh`.
+
+## Linting
+
+ShellCheck is used for static analysis:
+
+```bash
+shellcheck chicle.sh
+shellcheck -x test.sh
 ```
 
 ## Compatibility
