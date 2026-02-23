@@ -603,6 +603,7 @@ function Chicle-Progress {
     Chicle-Progress -Current 3 -Total 10 -Title "Processing"
     #>
     [CmdletBinding()]
+    [OutputType([void])]
     param(
         [int]$Percent = -1,
         [int]$Current = -1,
