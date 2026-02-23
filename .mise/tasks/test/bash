@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+#MISE description="Run BATS tests"
+
+set -e
+
+bats test/bash/

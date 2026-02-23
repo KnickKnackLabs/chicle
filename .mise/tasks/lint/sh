@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+#MISE description="Run ShellCheck on chicle.sh"
+
+set -e
+
+shellcheck chicle.sh
