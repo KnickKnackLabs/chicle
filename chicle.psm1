@@ -143,6 +143,8 @@ function Chicle-Confirm {
 }
 
 # Spinner while command runs
+# Note: The scriptblock runs in a separate pwsh process, so it does not have
+# access to the caller's variables, modules, or working directory.
 # Usage: Chicle-Spin [-Title TEXT] -ScriptBlock { ... }
 function Chicle-Spin {
     [CmdletBinding()]
