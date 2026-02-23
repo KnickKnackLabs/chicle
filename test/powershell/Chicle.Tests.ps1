@@ -185,6 +185,29 @@ Describe "Chicle-Table" {
     }
 }
 
+Describe "Chicle-Spin" {
+    It "returns 0 on success" {
+        Mock Write-Host {} -ModuleName chicle
+        Mock Start-Sleep {} -ModuleName chicle
+        $result = Chicle-Spin -Title "OK" -ScriptBlock { $true }
+        $result | Should -Be 0
+    }
+
+    It "returns non-zero on failure" {
+        Mock Write-Host {} -ModuleName chicle
+        Mock Start-Sleep {} -ModuleName chicle
+        $result = Chicle-Spin -Title "Fail" -ScriptBlock { throw "error" }
+        $result | Should -Not -Be 0
+    }
+
+    It "preserves failure from exit code" {
+        Mock Write-Host {} -ModuleName chicle
+        Mock Start-Sleep {} -ModuleName chicle
+        $result = Chicle-Spin -Title "Fail" -ScriptBlock { exit 1 }
+        $result | Should -Not -Be 0
+    }
+}
+
 Describe "Chicle-Progress" {
     # Progress uses Write-Host internally — must mock inside the module scope
     It "calls Write-Host with correct bar at 50%" {
