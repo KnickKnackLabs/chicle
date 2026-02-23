@@ -50,38 +50,26 @@ Both implementations use the same ANSI escape codes for colors and styling. Plat
 - **Bash**: `tput` for cursor control, `stty` for raw mode
 - **PowerShell**: `[Console]` .NET APIs for cursor control and key reading
 
-## Testing
+## Development
 
-### Bash Tests (BATS)
+All tasks are managed through mise. Run `mise tasks` to see available commands.
 
 ```bash
-bash test.sh
+mise install          # Install tool dependencies
+mise run setup        # Install PowerShell modules (Pester, PSScriptAnalyzer)
+mise run test         # Run all tests (bash + powershell)
+mise run test:bash    # Run BATS tests only
+mise run test:pwsh    # Run Pester tests only
+mise run lint         # Run all linters (shellcheck + psscriptanalyzer)
+mise run lint:sh      # ShellCheck only
+mise run lint:pwsh    # PSScriptAnalyzer only
 ```
 
-Requires [BATS](https://github.com/bats-core/bats-core) (`apt install bats` / `brew install bats-core`). Falls back to legacy test runner if BATS is not installed.
-
-Tests require `TERM` to be set (CI uses `TERM=xterm`). Interactive tests require `expect` and `perl`. Zsh compatibility tests require `zsh`.
-
-### PowerShell Tests (Pester)
-
-```powershell
-pwsh test.ps1
-```
-
-Requires [Pester](https://pester.dev/) 5+ (`Install-Module Pester -MinimumVersion 5.0 -Force`).
+Bash tests require `TERM` to be set (CI uses `TERM=xterm`). Interactive tests require `expect` and `perl`. Zsh compatibility tests require `zsh`.
 
 ### Shared Golden Fixtures
 
 Both test suites validate against shared golden fixture files in `test/fixtures/`. These contain the exact expected output (including ANSI codes) for deterministic functions: style, log, steps, progress, and table. This ensures both implementations produce identical output.
-
-## Linting
-
-ShellCheck is used for static analysis of bash code:
-
-```bash
-shellcheck chicle.sh
-shellcheck -x test.sh
-```
 
 ## Compatibility
 
