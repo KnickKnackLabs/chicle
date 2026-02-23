@@ -156,23 +156,40 @@ function Chicle-Spin {
                  [char]0x283C, [char]0x2834, [char]0x2826, [char]0x2827,
                  [char]0x2807, [char]0x280F)
 
+    # Write scriptblock to a temp file and run as a subprocess so we can
+    # capture the exact exit code. Start-Job loses non-zero exit codes
+    # because PowerShell marks jobs as "Completed" even when the child
+    # process exits with a non-zero code.
+    $tempScript = Join-Path ([System.IO.Path]::GetTempPath()) "chicle_spin_$([guid]::NewGuid().ToString('N')).ps1"
+    $ScriptBlock.ToString() | Set-Content $tempScript -Encoding UTF8
+
     # Hide cursor
     Write-Host -NoNewline "`e[?25l"
 
-    $job = Start-Job -ScriptBlock $ScriptBlock
-    $i = 0
+    $exitCode = 0
     try {
-        while ($job.State -eq 'Running') {
+        $psi = [System.Diagnostics.ProcessStartInfo]::new()
+        $psi.FileName = (Get-Command pwsh -ErrorAction Stop).Source
+        $psi.Arguments = "-NoProfile -NonInteractive -File `"$tempScript`""
+        $psi.UseShellExecute = $false
+        $psi.RedirectStandardOutput = $true
+        $psi.RedirectStandardError = $true
+        $psi.CreateNoWindow = $true
+
+        $proc = [System.Diagnostics.Process]::Start($psi)
+
+        $i = 0
+        while (-not $proc.HasExited) {
             $frame = $frames[$i % $frames.Count]
             Write-Host -NoNewline "`r${script:CHICLE_CYAN}${frame}${script:CHICLE_RESET} ${Title}"
             $i++
             Start-Sleep -Milliseconds 100
         }
 
-        $null = Receive-Job $job -ErrorAction SilentlyContinue
-        $exitCode = if ($job.State -eq 'Failed') { 1 } else { 0 }
+        $proc.WaitForExit()
+        $exitCode = $proc.ExitCode
     } finally {
-        Remove-Job $job -Force -ErrorAction SilentlyContinue
+        Remove-Item $tempScript -ErrorAction SilentlyContinue
         # Show cursor
         Write-Host -NoNewline "`e[?25h"
     }
@@ -236,7 +253,10 @@ function Chicle-Choose {
     _draw_menu
 
     try {
-        while ($true) {
+        # Use a flag to exit the loop — in PowerShell, `break` inside a
+        # `switch` only exits the switch, not the enclosing while loop.
+        $done = $false
+        while (-not $done) {
             $key = [Console]::ReadKey($true)
 
             switch ($key.Key) {
@@ -248,7 +268,7 @@ function Chicle-Choose {
                         _draw_menu
                     }
                 }
-                'Enter'     { break }
+                'Enter'     { $done = $true }
                 'Q'         {
                     # Show cursor
                     Write-Host -NoNewline "`e[?25h"
