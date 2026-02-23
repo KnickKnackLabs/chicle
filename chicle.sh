@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # chicle - Pure bash TUI library for delightful shell scripts
 
-CHICLE_VERSION="dev"
+export CHICLE_VERSION="dev"
 
 # Colors
 CHICLE_BOLD='\033[1m'
