@@ -186,35 +186,35 @@ Describe "Chicle-Table" {
 }
 
 Describe "Chicle-Progress" {
-    # Progress uses Write-Host, so we test via mock
+    # Progress uses Write-Host internally — must mock inside the module scope
     It "calls Write-Host with correct bar at 50%" {
-        Mock Write-Host {}
+        Mock Write-Host {} -ModuleName chicle
         Chicle-Progress -Percent 50 -Title "Test" -Width 10
-        Should -Invoke Write-Host -ParameterFilter {
+        Should -Invoke Write-Host -ModuleName chicle -ParameterFilter {
             $Object -match "$([char]0x2588){5}" -and $Object -match "$([char]0x2591){5}"
         }
     }
 
     It "calls Write-Host with full bar at 100%" {
-        Mock Write-Host {}
+        Mock Write-Host {} -ModuleName chicle
         Chicle-Progress -Percent 100 -Title "Test" -Width 10
-        Should -Invoke Write-Host -ParameterFilter {
+        Should -Invoke Write-Host -ModuleName chicle -ParameterFilter {
             $Object -match "$([char]0x2588){10}" -and $Object -match "100%"
         }
     }
 
     It "clamps above 100" {
-        Mock Write-Host {}
+        Mock Write-Host {} -ModuleName chicle
         Chicle-Progress -Percent 150 -Width 10
-        Should -Invoke Write-Host -ParameterFilter {
+        Should -Invoke Write-Host -ModuleName chicle -ParameterFilter {
             $Object -match "100%"
         }
     }
 
     It "clamps below 0" {
-        Mock Write-Host {}
+        Mock Write-Host {} -ModuleName chicle
         Chicle-Progress -Percent -10 -Width 10
-        Should -Invoke Write-Host -ParameterFilter {
+        Should -Invoke Write-Host -ModuleName chicle -ParameterFilter {
             $Object -match "  0%"
         }
     }
