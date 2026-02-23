@@ -4,6 +4,11 @@
 
 $ErrorActionPreference = 'Stop'
 
+if (-not (Get-Module -ListAvailable -Name Pester | Where-Object Version -ge '5.0')) {
+    Write-Error "Pester 5+ not found. Run: mise run setup"
+    exit 1
+}
+
 Import-Module Pester -MinimumVersion 5.0
 
 $config = New-PesterConfiguration
