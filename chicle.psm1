@@ -17,10 +17,15 @@ function _chicle_repeat {
     $Char * $Count
 }
 
-# Style text with formatting
-# Usage: Chicle-Style [-Bold] [-Dim] [-Cyan|-Green|-Yellow|-Red] "TEXT"
 function Chicle-Style {
+    <#
+    .SYNOPSIS
+    Style text with ANSI formatting.
+    .EXAMPLE
+    Chicle-Style -Bold -Cyan "Hello"
+    #>
     [CmdletBinding()]
+    [OutputType([string])]
     param(
         [switch]$Bold,
         [switch]$Dim,
@@ -43,9 +48,15 @@ function Chicle-Style {
     "${prefix}${Text}${script:CHICLE_RESET}"
 }
 
-# Prompt for text input
-# Usage: Chicle-Input [-Placeholder TEXT] [-Prompt TEXT] [-Password] [-Mask [CHAR]]
 function Chicle-Input {
+    <#
+    .SYNOPSIS
+    Prompt for text input with optional placeholder and password masking.
+    .EXAMPLE
+    $name = Chicle-Input -Placeholder "Enter your name"
+    .EXAMPLE
+    $pass = Chicle-Input -Password -Mask "*"
+    #>
     [CmdletBinding()]
     param(
         [string]$Placeholder = "",
@@ -121,10 +132,15 @@ function Chicle-Input {
     $value
 }
 
-# Yes/no confirmation
-# Usage: Chicle-Confirm [-Default "yes"|"no"] "PROMPT"
 function Chicle-Confirm {
+    <#
+    .SYNOPSIS
+    Yes/no confirmation prompt.
+    .EXAMPLE
+    if (Chicle-Confirm "Continue?" -Default "yes") { ... }
+    #>
     [CmdletBinding()]
+    [OutputType([bool])]
     param(
         [Parameter(Position = 0)]
         [string]$Prompt,
@@ -142,12 +158,18 @@ function Chicle-Confirm {
     return ($reply -match '^[Yy]')
 }
 
-# Spinner while command runs
-# Note: The scriptblock runs in a separate pwsh process, so it does not have
-# access to the caller's variables, modules, or working directory.
-# Usage: Chicle-Spin [-Title TEXT] -ScriptBlock { ... }
 function Chicle-Spin {
+    <#
+    .SYNOPSIS
+    Show a spinner while a command runs in a subprocess.
+    .DESCRIPTION
+    The scriptblock runs in a separate pwsh process, so it does not have
+    access to the caller's variables, modules, or working directory.
+    .EXAMPLE
+    Chicle-Spin -Title "Installing..." -ScriptBlock { Start-Sleep 3 }
+    #>
     [CmdletBinding()]
+    [OutputType([int])]
     param(
         [string]$Title = "",
         [Parameter(Mandatory)]
@@ -205,10 +227,17 @@ function Chicle-Spin {
     return $exitCode
 }
 
-# Interactive chooser with arrow keys
-# Usage: Chicle-Choose [-Header TEXT] [-Multi] -Options @("A", "B", "C")
 function Chicle-Choose {
+    <#
+    .SYNOPSIS
+    Interactive chooser with arrow key navigation.
+    .EXAMPLE
+    $choice = Chicle-Choose -Header "Pick one:" -Options @("A", "B", "C")
+    .EXAMPLE
+    $choices = Chicle-Choose -Multi -Options @("X", "Y", "Z")
+    #>
     [CmdletBinding()]
+    [OutputType([string], [string[]])]
     param(
         [string]$Header = "",
         [switch]$Multi,
@@ -225,12 +254,12 @@ function Chicle-Choose {
     # Save cursor position and hide cursor
     Write-Host -NoNewline "`e[s`e[?25l"
 
-    function _draw_menu {
+    function _draw_menu([string]$hdr) {
         # Restore cursor to saved position
         Write-Host -NoNewline "`e[u"
 
-        if ($Header) {
-            Write-Host "${script:CHICLE_BOLD}${Header}${script:CHICLE_RESET}"
+        if ($hdr) {
+            Write-Host "${script:CHICLE_BOLD}${hdr}${script:CHICLE_RESET}"
         }
 
         for ($i = 0; $i -lt $count; $i++) {
@@ -252,7 +281,7 @@ function Chicle-Choose {
         }
     }
 
-    _draw_menu
+    _draw_menu $Header
 
     try {
         # Use a flag to exit the loop — in PowerShell, `break` inside a
@@ -262,12 +291,12 @@ function Chicle-Choose {
             $key = [Console]::ReadKey($true)
 
             switch ($key.Key) {
-                'UpArrow'   { if ($cursor -gt 0) { $cursor-- }; _draw_menu }
-                'DownArrow' { if ($cursor -lt $count - 1) { $cursor++ }; _draw_menu }
+                'UpArrow'   { if ($cursor -gt 0) { $cursor-- }; _draw_menu $Header }
+                'DownArrow' { if ($cursor -lt $count - 1) { $cursor++ }; _draw_menu $Header }
                 'Spacebar'  {
                     if ($Multi) {
                         $selections[$cursor] = -not $selections[$cursor]
-                        _draw_menu
+                        _draw_menu $Header
                     }
                 }
                 'Enter'     { $done = $true }
@@ -296,10 +325,17 @@ function Chicle-Choose {
     }
 }
 
-# Print a horizontal rule
-# Usage: Chicle-Rule [-Char CHAR]
 function Chicle-Rule {
+    <#
+    .SYNOPSIS
+    Print a full-width horizontal rule.
+    .EXAMPLE
+    Chicle-Rule
+    .EXAMPLE
+    Chicle-Rule -Char "="
+    #>
     [CmdletBinding()]
+    [OutputType([string])]
     param(
         [string]$Char = [string][char]0x2500  # ─
     )
@@ -308,11 +344,18 @@ function Chicle-Rule {
     (_chicle_repeat $Char $cols)
 }
 
-# Styled log output with icons
-# Usage: Chicle-Log [-Info|-Success|-Warn|-Error|-Debug|-Step] "MESSAGE"
-# Note: -Error and -Debug conflict with PowerShell common parameters, so we
-# use a simple function (no CmdletBinding) and parse level flags manually.
 function Chicle-Log {
+    <#
+    .SYNOPSIS
+    Styled log output with level icons.
+    .DESCRIPTION
+    Uses manual arg parsing instead of CmdletBinding because -Error and
+    -Debug conflict with PowerShell common parameters.
+    .EXAMPLE
+    Chicle-Log -Info "Starting process"
+    .EXAMPLE
+    Chicle-Log -Error "Something failed"
+    #>
     $level = ""
     $message = ""
 
@@ -339,10 +382,17 @@ function Chicle-Log {
     }
 }
 
-# Step indicator for multi-step processes
-# Usage: Chicle-Steps -Current N -Total M [-Title TEXT] [-Style numeric|dots|progress]
 function Chicle-Steps {
+    <#
+    .SYNOPSIS
+    Step indicator for multi-step processes.
+    .EXAMPLE
+    Chicle-Steps -Current 2 -Total 5 -Title "Installing"
+    .EXAMPLE
+    Chicle-Steps -Current 3 -Total 4 -Style dots
+    #>
     [CmdletBinding()]
+    [OutputType([string])]
     param(
         [Parameter(Mandatory)]
         [int]$Current,
@@ -376,11 +426,17 @@ function Chicle-Steps {
     }
 }
 
-# Formatted table output
-# Usage: Chicle-Table [-Header FIELDS] [-Sep CHAR] [-Style box|simple] [-Rows] ROW1,ROW2,...
-#    or: ... | Chicle-Table [-Header FIELDS] [-Sep CHAR] [-Style box|simple]
 function Chicle-Table {
+    <#
+    .SYNOPSIS
+    Formatted table output with box or simple style.
+    .EXAMPLE
+    Chicle-Table -Header "Name,Age" "Alice,30" "Bob,25"
+    .EXAMPLE
+    "Alice,30", "Bob,25" | Chicle-Table -Header "Name,Age" -Style simple
+    #>
     [CmdletBinding()]
+    [OutputType([string])]
     param(
         [string]$Header = "",
         [string]$Sep = ",",
@@ -512,16 +568,16 @@ function Chicle-Table {
         $output = [System.Collections.Generic.List[string]]::new()
 
         if ($Style -eq "box") {
-            $output.Add((_box_line ([string][char]0x250C) ([string][char]0x252C) ([string][char]0x2510) ([string][char]0x2500)))
+            $output.Add((_box_line -left ([string][char]0x250C) -mid ([string][char]0x252C) -right ([string][char]0x2510) -fill ([string][char]0x2500)))
             foreach ($entry in $allRows) {
                 if ($entry.Type -eq "H") {
                     $output.Add((_box_row $entry.Data $true))
-                    $output.Add((_box_line ([string][char]0x251C) ([string][char]0x253C) ([string][char]0x2524) ([string][char]0x2500)))
+                    $output.Add((_box_line -left ([string][char]0x251C) -mid ([string][char]0x253C) -right ([string][char]0x2524) -fill ([string][char]0x2500)))
                 } else {
                     $output.Add((_box_row $entry.Data $false))
                 }
             }
-            $output.Add((_box_line ([string][char]0x2514) ([string][char]0x2534) ([string][char]0x2518) ([string][char]0x2500)))
+            $output.Add((_box_line -left ([string][char]0x2514) -mid ([string][char]0x2534) -right ([string][char]0x2518) -fill ([string][char]0x2500)))
         } else {
             foreach ($entry in $allRows) {
                 if ($entry.Type -eq "H") {
@@ -537,11 +593,17 @@ function Chicle-Table {
     }
 }
 
-# Progress bar with in-place updating
-# Usage: Chicle-Progress -Percent N [-Title TEXT] [-Width W]
-#    or: Chicle-Progress -Current N -Total M [-Title TEXT] [-Width W]
 function Chicle-Progress {
+    <#
+    .SYNOPSIS
+    Progress bar with in-place updating.
+    .EXAMPLE
+    Chicle-Progress -Percent 50 -Title "Downloading"
+    .EXAMPLE
+    Chicle-Progress -Current 3 -Total 10 -Title "Processing"
+    #>
     [CmdletBinding()]
+    [OutputType([void])]
     param(
         [int]$Percent = -1,
         [int]$Current = -1,
