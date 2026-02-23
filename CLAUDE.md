@@ -71,6 +71,15 @@ Bash tests require `TERM` to be set (CI uses `TERM=xterm`). Interactive tests re
 
 Both test suites validate against shared golden fixture files in `test/fixtures/`. These contain the exact expected output (including ANSI codes) for deterministic functions: style, log, steps, progress, and table. This ensures both implementations produce identical output.
 
+## Releases
+
+Releases are automated via `.github/workflows/release.yml`. To cut a new release:
+
+1. Push a semver tag: `git tag -s v1.2.3 -m "v1.2.3" && git push origin v1.2.3`
+2. CI validates the tag format, injects the version into `chicle.sh` and `chicle.psm1` (replacing `"dev"`), generates SHA256 checksums, and creates a GitHub release with all three files as assets.
+
+Source files always have `CHICLE_VERSION="dev"` — the real version only exists in release artifacts.
+
 ## Compatibility
 
 - **Bash**: Targets bash 4+ on macOS and Linux. Relies on `tput` (ncurses) and `stty` (coreutils).
