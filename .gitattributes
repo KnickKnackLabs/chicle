@@ -1,0 +1,2 @@
+# Golden fixture files contain exact ANSI byte sequences — never convert line endings
+test/fixtures/*.golden binary
