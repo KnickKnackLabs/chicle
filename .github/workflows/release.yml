@@ -1,0 +1,42 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Inject version into source files
+        run: |
+          sed -i 's/CHICLE_VERSION="dev"/CHICLE_VERSION="${{ steps.version.outputs.version }}"/' chicle.sh
+          sed -i 's/\$script:CHICLE_VERSION = "dev"/$script:CHICLE_VERSION = "${{ steps.version.outputs.version }}"/' chicle.psm1
+
+      - name: Verify version was injected
+        run: |
+          grep -q 'CHICLE_VERSION="${{ steps.version.outputs.version }}"' chicle.sh
+          grep -q 'CHICLE_VERSION = "${{ steps.version.outputs.version }}"' chicle.psm1
+
+      - name: Generate checksums
+        run: sha256sum chicle.sh chicle.psm1 > checksums.txt
+
+      - name: Create release
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            chicle.sh \
+            chicle.psm1 \
+            checksums.txt \
+            --generate-notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

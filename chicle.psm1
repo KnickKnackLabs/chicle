@@ -1,6 +1,8 @@
 #Requires -Version 7.0
 # chicle - PowerShell TUI library for delightful shell scripts
 
+$script:CHICLE_VERSION = "dev"
+
 # Colors (ANSI escape sequences — identical to bash implementation)
 $script:CHICLE_BOLD   = "`e[1m"
 $script:CHICLE_DIM    = "`e[2m"
