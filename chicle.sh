@@ -80,14 +80,14 @@ chicle_input() {
   # Password mode or placeholder mode both need character-by-character reading
   if [[ -n "$password" || -n "$placeholder" ]]; then
     if [[ -n "$placeholder" ]]; then
-      printf "%s%b%s%b" "$prompt" "$CHICLE_DIM" "$placeholder" "$CHICLE_RESET"
-      printf "\r\033[%dC" "${#prompt}"  # Move cursor to after prompt
+      printf "%s%b%s%b" "$prompt" "$CHICLE_DIM" "$placeholder" "$CHICLE_RESET" >/dev/tty
+      printf "\r\033[%dC" "${#prompt}" >/dev/tty  # Move cursor to after prompt
     else
-      printf "%s" "$prompt"
+      printf "%s" "$prompt" >/dev/tty
     fi
 
     while true; do
-      _chicle_read_char char
+      _chicle_read_char char </dev/tty
 
       if [[ "$char" == $'\n' || "$char" == '' ]]; then
         break
@@ -97,37 +97,37 @@ chicle_input() {
           value="${value%?}"
           if [[ -n "$placeholder" && -z "$value" ]]; then
             # Show placeholder again when empty
-            printf "\r\033[K%s%b%s%b" "$prompt" "$CHICLE_DIM" "$placeholder" "$CHICLE_RESET"
-            printf "\r\033[%dC" "${#prompt}"
+            printf "\r\033[K%s%b%s%b" "$prompt" "$CHICLE_DIM" "$placeholder" "$CHICLE_RESET" >/dev/tty
+            printf "\r\033[%dC" "${#prompt}" >/dev/tty
           elif [[ -n "$mask" ]]; then
             # Redraw masked value
-            printf "\r\033[K%s%s" "$prompt" "$(_chicle_repeat "$mask" "${#value}")"
+            printf "\r\033[K%s%s" "$prompt" "$(_chicle_repeat "$mask" "${#value}")" >/dev/tty
           elif [[ -z "$password" ]]; then
             # Normal mode - redraw value
-            printf "\r\033[K%s%s" "$prompt" "$value"
+            printf "\r\033[K%s%s" "$prompt" "$value" >/dev/tty
           else
             # Password mode without mask - just move cursor back
-            printf "\b \b"
+            printf "\b \b" >/dev/tty
           fi
         fi
       else
         # First char clears placeholder
         if [[ -n "$placeholder" && -z "$value" ]]; then
-          printf "\r\033[K%s" "$prompt"
+          printf "\r\033[K%s" "$prompt" >/dev/tty
         fi
         value+="$char"
         if [[ -n "$mask" ]]; then
-          printf "%s" "$mask"
+          printf "%s" "$mask" >/dev/tty
         elif [[ -z "$password" ]]; then
-          printf "%s" "$char"
+          printf "%s" "$char" >/dev/tty
         fi
         # Password without mask: print nothing
       fi
     done
-    printf "\n"
+    printf "\n" >/dev/tty
   else
-    printf "%s" "$prompt"
-    IFS= read -r value
+    printf "%s" "$prompt" >/dev/tty
+    IFS= read -r value </dev/tty
   fi
 
   echo "$value"
@@ -147,8 +147,8 @@ chicle_confirm() {
   local hint="[y/N]"
   [[ "$default" == "yes" ]] && hint="[Y/n]"
 
-  printf "%b%s%b %s " "$CHICLE_BOLD" "$prompt" "$CHICLE_RESET" "$hint"
-  read -r reply
+  printf "%b%s%b %s " "$CHICLE_BOLD" "$prompt" "$CHICLE_RESET" "$hint" >/dev/tty
+  read -r reply </dev/tty
 
   if [[ -z "$reply" ]]; then
     [[ "$default" == "yes" ]]
@@ -239,12 +239,26 @@ chicle_choose() {
     selections+=("")
   done
 
+  # Terminal cleanup helper
+  local _chicle_interrupted=""
+  _chicle_choose_cleanup() {
+    stty echo icanon </dev/tty 2>/dev/null
+    tput cnorm >/dev/tty 2>/dev/null
+  }
+  # On signal: restore terminal visually (cursor, echo) and set flag.
+  # read -n1 will still be waiting — the user presses any key to dismiss,
+  # then the flag check breaks the loop and returns 130.
+  local _chicle_prev_int _chicle_prev_term
+  _chicle_prev_int=$(trap -p INT)
+  _chicle_prev_term=$(trap -p TERM)
+  trap '_chicle_choose_cleanup; _chicle_interrupted=1' INT TERM
+
   # Save cursor position and hide cursor
-  tput sc
-  tput civis
+  tput sc >/dev/tty
+  tput civis >/dev/tty
 
   # Enable raw mode
-  stty -echo -icanon
+  stty -echo -icanon </dev/tty
 
   _sel_idx() {
     # zsh arrays are 1-indexed, bash are 0-indexed
@@ -272,9 +286,9 @@ chicle_choose() {
   }
 
   draw_menu() {
-    tput rc  # Restore cursor to saved position
+    tput rc >/dev/tty  # Restore cursor to saved position
 
-    [[ -n "$header" ]] && printf "%b%s%b\n" "$CHICLE_BOLD" "$header" "$CHICLE_RESET"
+    [[ -n "$header" ]] && printf "%b%s%b\n" "$CHICLE_BOLD" "$header" "$CHICLE_RESET" >/dev/tty
 
     local i=0
     for opt in "${options[@]}"; do
@@ -283,16 +297,16 @@ chicle_choose() {
         local checkbox="[ ]"
         _is_selected $i && checkbox="[x]"
         if [[ $i -eq $cursor ]]; then
-          printf "%b❯ %s %s%b\n" "$CHICLE_CYAN" "$checkbox" "$opt" "$CHICLE_RESET"
+          printf "%b❯ %s %s%b\n" "$CHICLE_CYAN" "$checkbox" "$opt" "$CHICLE_RESET" >/dev/tty
         else
-          printf "  %s %s\n" "$checkbox" "$opt"
+          printf "  %s %s\n" "$checkbox" "$opt" >/dev/tty
         fi
       else
         # Single-select mode
         if [[ $i -eq $cursor ]]; then
-          printf "%b❯ %s%b\n" "$CHICLE_CYAN" "$opt" "$CHICLE_RESET"
+          printf "%b❯ %s%b\n" "$CHICLE_CYAN" "$opt" "$CHICLE_RESET" >/dev/tty
         else
-          printf "  %s\n" "$opt"
+          printf "  %s\n" "$opt" >/dev/tty
         fi
       fi
       ((i++))
@@ -303,10 +317,11 @@ chicle_choose() {
 
   local key=""
   while true; do
-    _chicle_read_char key
+    _chicle_read_char key </dev/tty
+    [[ -n "$_chicle_interrupted" ]] && break
 
     if [[ $key == $'\x1b' ]]; then
-      _chicle_read_chars 2 key
+      _chicle_read_chars 2 key </dev/tty
       case $key in
         '[A') ((cursor > 0)) && ((cursor--)) ;;           # Up
         '[B') ((cursor < count - 1)) && ((cursor++)) ;;   # Down
@@ -318,15 +333,20 @@ chicle_choose() {
     elif [[ $key == '' || $key == $'\n' ]]; then  # Enter
       break
     elif [[ $key == 'q' ]]; then  # Quit
-      stty echo icanon
-      tput cnorm
+      _chicle_choose_cleanup
+      eval "${_chicle_prev_int:-trap - INT}"
+      eval "${_chicle_prev_term:-trap - TERM}"
       return 1
     fi
   done
 
-  # Restore terminal
-  stty echo icanon
-  tput cnorm
+  # Restore terminal and previous signal handlers
+  _chicle_choose_cleanup
+  eval "${_chicle_prev_int:-trap - INT}"
+  eval "${_chicle_prev_term:-trap - TERM}"
+
+  # If interrupted by signal, return 130 (SIGINT convention)
+  [[ -n "$_chicle_interrupted" ]] && return 130
 
   if [[ -n "$multi" ]]; then
     # Output all selected items, newline-separated
