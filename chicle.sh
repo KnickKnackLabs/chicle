@@ -179,7 +179,7 @@ chicle_spin() {
 
     local i=0
     while kill -0 "$pid" 2>/dev/null; do
-      printf "\r%b%s%b %s" "$CHICLE_CYAN" "${frames[$i]}" "$CHICLE_RESET" "$title" >/dev/tty
+      printf "\r%b%s%b %s" "$CHICLE_CYAN" "${frames[$i]}" "$CHICLE_RESET" "$title"
       i=$(( (i + 1) % ${#frames[@]} ))
       sleep 0.1
     done
@@ -195,7 +195,7 @@ chicle_spin() {
 
     local i=0
     while kill -0 "$pid" 2>/dev/null; do
-      printf "\r%b%s%b %s" "$CHICLE_CYAN" "${frames[$i]}" "$CHICLE_RESET" "$title" >/dev/tty
+      printf "\r%b%s%b %s" "$CHICLE_CYAN" "${frames[$i]}" "$CHICLE_RESET" "$title"
       i=$(( (i + 1) % ${#frames[@]} ))
       sleep 0.1
     done
@@ -208,9 +208,9 @@ chicle_spin() {
   fi
 
   if [[ $exit_code -eq 0 ]]; then
-    printf "\r%b✓%b %s\n" "$CHICLE_GREEN" "$CHICLE_RESET" "$title" >/dev/tty
+    printf "\r%b✓%b %s\n" "$CHICLE_GREEN" "$CHICLE_RESET" "$title"
   else
-    printf "\r%b✗%b %s\n" "$CHICLE_RED" "$CHICLE_RESET" "$title" >/dev/tty
+    printf "\r%b✗%b %s\n" "$CHICLE_RED" "$CHICLE_RESET" "$title"
   fi
 
   return "$exit_code"
@@ -645,5 +645,5 @@ chicle_progress() {
   [[ $percent -eq 100 ]] && color="$CHICLE_GREEN"
 
   # Print with \r to update in place (no newline)
-  printf "\r%s %b[%s]%b %3d%%" "$title" "$color" "$bar" "$CHICLE_RESET" "$percent" >/dev/tty
+  printf "\r%s %b[%s]%b %3d%%" "$title" "$color" "$bar" "$CHICLE_RESET" "$percent"
 }
