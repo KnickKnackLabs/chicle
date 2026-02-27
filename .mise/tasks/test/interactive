@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+#MISE description="Run interactive TUI tests (requires a terminal)"
+
+set -eo pipefail
+
+source chicle.sh
+
+pass=0
+fail=0
+failures=()
+
+check() {
+  local desc="$1" ok="$2" detail="${3:-}"
+  if [[ "$ok" == "true" ]]; then
+    printf "  ✓ %s\n" "$desc"
+    pass=$((pass + 1))
+  else
+    printf "  ✗ %s\n" "$desc"
+    [[ -n "$detail" ]] && printf "    → %s\n" "$detail"
+    failures+=("$desc${detail:+ ($detail)}")
+    fail=$((fail + 1))
+  fi
+}
+
+# --- Test 1: chicle_confirm ---
+echo ""
+echo "=== chicle_confirm ==="
+echo "  Answer however you like."
+if chicle_confirm --default no "Do you like waffles?"; then
+  echo "  (you said yes)"
+else
+  echo "  (you said no)"
+fi
+check "confirm: prompt visible and accepted input" "true"
+
+# --- Test 2: chicle_choose (captured) ---
+echo ""
+echo "=== chicle_choose ==="
+echo "  Pick any option."
+CHOICE=$(chicle_choose --header "Pick a color" "Red" "Green" "Blue")
+check "choose: menu visible during selection" "true"
+check "choose: result is one of the options" \
+  "$([[ "$CHOICE" =~ ^(Red|Green|Blue)$ ]] && echo true || echo false)" \
+  "got: '$CHOICE'"
+echo "  → You picked: $CHOICE"
+
+# --- Test 3: chicle_input (captured) ---
+echo ""
+echo "=== chicle_input ==="
+echo "  Type anything."
+VALUE=$(chicle_input --prompt "Say something: ")
+check "input: prompt visible during input" "true"
+check "input: captured a non-empty value" \
+  "$([[ -n "$VALUE" ]] && echo true || echo false)" \
+  "got: '$VALUE'"
+echo "  → You typed: $VALUE"
+
+# --- Test 4: chicle_spin ---
+echo ""
+echo "=== chicle_spin ==="
+chicle_spin --title "Pretending to work" -- sleep 1
+check "spin: displayed and completed" "true"
+
+# --- Test 5: ctrl-c recovery ---
+echo ""
+echo "=== ctrl-c recovery ==="
+echo "  Press ctrl-c during the next menu."
+chicle_choose --header "Press ctrl-c now" "Apple" "Banana" >/dev/null || true
+TTY_STATE=$(stty -a </dev/tty 2>&1)
+ECHO_OFF=$(echo "$TTY_STATE" | grep -cE '(^|[[:space:]])-echo([[:space:]]|$)' || true)
+ICANON_OFF=$(echo "$TTY_STATE" | grep -cE '(^|[[:space:]])-icanon([[:space:]]|$)' || true)
+check "ctrl-c: echo restored" "$([[ "$ECHO_OFF" == "0" ]] && echo true || echo false)"
+check "ctrl-c: icanon restored" "$([[ "$ICANON_OFF" == "0" ]] && echo true || echo false)"
+
+# --- Summary ---
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+printf "Results: %d passed, %d failed\n" "$pass" "$fail"
+if [[ ${#failures[@]} -gt 0 ]]; then
+  echo ""
+  echo "Failures:"
+  for f in "${failures[@]}"; do
+    echo "  - $f"
+  done
+fi
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+[[ $fail -eq 0 ]]

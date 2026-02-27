@@ -179,7 +179,7 @@ chicle_spin() {
 
     local i=0
     while kill -0 "$pid" 2>/dev/null; do
-      printf "\r%b%s%b %s" "$CHICLE_CYAN" "${frames[$i]}" "$CHICLE_RESET" "$title"
+      printf "\r%b%s%b %s" "$CHICLE_CYAN" "${frames[$i]}" "$CHICLE_RESET" "$title" >/dev/tty
       i=$(( (i + 1) % ${#frames[@]} ))
       sleep 0.1
     done
@@ -195,7 +195,7 @@ chicle_spin() {
 
     local i=0
     while kill -0 "$pid" 2>/dev/null; do
-      printf "\r%b%s%b %s" "$CHICLE_CYAN" "${frames[$i]}" "$CHICLE_RESET" "$title"
+      printf "\r%b%s%b %s" "$CHICLE_CYAN" "${frames[$i]}" "$CHICLE_RESET" "$title" >/dev/tty
       i=$(( (i + 1) % ${#frames[@]} ))
       sleep 0.1
     done
@@ -208,9 +208,9 @@ chicle_spin() {
   fi
 
   if [[ $exit_code -eq 0 ]]; then
-    printf "\r%b✓%b %s\n" "$CHICLE_GREEN" "$CHICLE_RESET" "$title"
+    printf "\r%b✓%b %s\n" "$CHICLE_GREEN" "$CHICLE_RESET" "$title" >/dev/tty
   else
-    printf "\r%b✗%b %s\n" "$CHICLE_RED" "$CHICLE_RESET" "$title"
+    printf "\r%b✗%b %s\n" "$CHICLE_RED" "$CHICLE_RESET" "$title" >/dev/tty
   fi
 
   return "$exit_code"
@@ -238,6 +238,20 @@ chicle_choose() {
   for ((i=0; i<count; i++)); do
     selections+=("")
   done
+
+  # Terminal cleanup helper
+  local _chicle_interrupted=""
+  _chicle_choose_cleanup() {
+    stty echo icanon </dev/tty 2>/dev/null
+    tput cnorm >/dev/tty 2>/dev/null
+  }
+  # On signal: restore terminal visually (cursor, echo) and set flag.
+  # read -n1 will still be waiting — the user presses any key to dismiss,
+  # then the flag check breaks the loop and returns 130.
+  local _chicle_prev_int _chicle_prev_term
+  _chicle_prev_int=$(trap -p INT)
+  _chicle_prev_term=$(trap -p TERM)
+  trap '_chicle_choose_cleanup; _chicle_interrupted=1' INT TERM
 
   # Save cursor position and hide cursor
   tput sc >/dev/tty
@@ -304,6 +318,7 @@ chicle_choose() {
   local key=""
   while true; do
     _chicle_read_char key </dev/tty
+    [[ -n "$_chicle_interrupted" ]] && break
 
     if [[ $key == $'\x1b' ]]; then
       _chicle_read_chars 2 key </dev/tty
@@ -318,15 +333,20 @@ chicle_choose() {
     elif [[ $key == '' || $key == $'\n' ]]; then  # Enter
       break
     elif [[ $key == 'q' ]]; then  # Quit
-      stty echo icanon </dev/tty
-      tput cnorm >/dev/tty
+      _chicle_choose_cleanup
+      eval "${_chicle_prev_int:-trap - INT}"
+      eval "${_chicle_prev_term:-trap - TERM}"
       return 1
     fi
   done
 
-  # Restore terminal
-  stty echo icanon </dev/tty
-  tput cnorm >/dev/tty
+  # Restore terminal and previous signal handlers
+  _chicle_choose_cleanup
+  eval "${_chicle_prev_int:-trap - INT}"
+  eval "${_chicle_prev_term:-trap - TERM}"
+
+  # If interrupted by signal, return 130 (SIGINT convention)
+  [[ -n "$_chicle_interrupted" ]] && return 130
 
   if [[ -n "$multi" ]]; then
     # Output all selected items, newline-separated
@@ -625,5 +645,5 @@ chicle_progress() {
   [[ $percent -eq 100 ]] && color="$CHICLE_GREEN"
 
   # Print with \r to update in place (no newline)
-  printf "\r%s %b[%s]%b %3d%%" "$title" "$color" "$bar" "$CHICLE_RESET" "$percent"
+  printf "\r%s %b[%s]%b %3d%%" "$title" "$color" "$bar" "$CHICLE_RESET" "$percent" >/dev/tty
 }
