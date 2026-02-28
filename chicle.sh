@@ -12,6 +12,14 @@ CHICLE_GREEN='\033[32m'
 CHICLE_YELLOW='\033[33m'
 CHICLE_RED='\033[31m'
 
+# Read timeout for interruptible input (ctrl-c detection).
+# Probe whether fractional timeouts are supported (bash 3.2 rejects them).
+if [[ -z "$(read -r -t 0.01 </dev/null 2>&1)" ]]; then
+  _chicle_read_timeout=0.05
+else
+  _chicle_read_timeout=1
+fi
+
 # Shell-agnostic character reading helpers
 _chicle_read_char() {
   if [[ -n "$ZSH_VERSION" ]]; then
@@ -217,13 +225,16 @@ chicle_spin() {
 }
 
 # Interactive chooser with arrow keys
-# Usage: chicle_choose [--header TEXT] [--multi] OPTION1 OPTION2 ...
+# Usage: chicle_choose [--header TEXT] [--multi] [--var VARNAME] OPTION1 OPTION2 ...
+# --var writes the result to a variable instead of stdout, avoiding $(...) subshells
+# where ctrl-c would kill the parent process.
 chicle_choose() {
-  local header="" multi="" options=()
+  local header="" multi="" _chicle_var="" options=()
   while [[ $# -gt 0 ]]; do
     case $1 in
       --header) header="$2"; shift 2 ;;
       --multi) multi=1; shift ;;
+      --var) _chicle_var="$2"; shift 2 ;;
       *) options+=("$1"); shift ;;
     esac
   done
@@ -245,20 +256,26 @@ chicle_choose() {
     stty echo icanon </dev/tty 2>/dev/null
     tput cnorm >/dev/tty 2>/dev/null
   }
-  # On signal: restore terminal visually (cursor, echo) and set flag.
-  # read -n1 will still be waiting — the user presses any key to dismiss,
-  # then the flag check breaks the loop and returns 130.
+  # On signal: set flag only. Don't restore terminal mode here — changing
+  # stty back to cooked mode while read -n1 is waiting causes it to need
+  # Enter (line-buffered input) instead of returning on any keypress.
+  # Terminal is restored after the loop exits.
   local _chicle_prev_int _chicle_prev_term
   _chicle_prev_int=$(trap -p INT)
   _chicle_prev_term=$(trap -p TERM)
-  trap '_chicle_choose_cleanup; _chicle_interrupted=1' INT TERM
+  trap '_chicle_interrupted=1' INT TERM
 
-  # Save cursor position and hide cursor
-  tput sc >/dev/tty
+  # Calculate total menu lines (for relative cursor movement)
+  local menu_lines=$count
+  [[ -n "$header" ]] && ((menu_lines++))
+
+  # Hide cursor
   tput civis >/dev/tty
 
   # Enable raw mode
   stty -echo -icanon </dev/tty
+
+  local _chicle_drawn=0
 
   _sel_idx() {
     # zsh arrays are 1-indexed, bash are 0-indexed
@@ -286,7 +303,11 @@ chicle_choose() {
   }
 
   draw_menu() {
-    tput rc >/dev/tty  # Restore cursor to saved position
+    # Move cursor up to overwrite previous draw (skip on first draw)
+    if [[ $_chicle_drawn -eq 1 ]]; then
+      printf "\033[%dA" "$menu_lines" >/dev/tty
+    fi
+    _chicle_drawn=1
 
     [[ -n "$header" ]] && printf "%b%s%b\n" "$CHICLE_BOLD" "$header" "$CHICLE_RESET" >/dev/tty
 
@@ -317,7 +338,18 @@ chicle_choose() {
 
   local key=""
   while true; do
-    _chicle_read_char key </dev/tty
+    # Read a keypress, with timeout so ctrl-c interrupt flag is checked.
+    # bash's read restarts after signal traps (SA_RESTART), so without a
+    # timeout, ctrl-c sets the flag but read blocks until the next keypress.
+    key=""
+    if [[ -n "$ZSH_VERSION" ]]; then
+      read -rsk1 key </dev/tty
+    else
+      while [[ -z "$_chicle_interrupted" ]]; do
+        IFS= read -rsn1 -t "$_chicle_read_timeout" key </dev/tty
+        [[ $? -le 128 ]] && break  # got input (not a timeout)
+      done
+    fi
     [[ -n "$_chicle_interrupted" ]] && break
 
     if [[ $key == $'\x1b' ]]; then
@@ -348,12 +380,14 @@ chicle_choose() {
   # If interrupted by signal, return 130 (SIGINT convention)
   [[ -n "$_chicle_interrupted" ]] && return 130
 
+  local _chicle_result=""
   if [[ -n "$multi" ]]; then
     # Output all selected items, newline-separated
     local i=0
     for opt in "${options[@]}"; do
       if _is_selected $i; then
-        echo "$opt"
+        [[ -n "$_chicle_result" ]] && _chicle_result+=$'\n'
+        _chicle_result+="$opt"
       fi
       ((i++))
     done
@@ -361,10 +395,16 @@ chicle_choose() {
     # Single select: output the one item at cursor
     # zsh arrays are 1-indexed, bash arrays are 0-indexed
     if [[ -n "$ZSH_VERSION" ]]; then
-      echo "${options[$((cursor + 1))]}"
+      _chicle_result="${options[$((cursor + 1))]}"
     else
-      echo "${options[$cursor]}"
+      _chicle_result="${options[$cursor]}"
     fi
+  fi
+
+  if [[ -n "$_chicle_var" ]]; then
+    printf -v "$_chicle_var" '%s' "$_chicle_result"
+  else
+    echo "$_chicle_result"
   fi
 }
 
