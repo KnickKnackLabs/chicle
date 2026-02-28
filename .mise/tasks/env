@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+#MISE description="Show environment details relevant to chicle"
+
+echo "OS:      $(uname -s) $(uname -r) ($(uname -m))"
+echo "TERM:    ${TERM:-<unset>}"
+echo ""
+
+# Current shell (the one that invoked this task)
+echo "Current shell:"
+echo "  \$SHELL: ${SHELL:-<unset>}"
+if [[ -n "$BASH_VERSION" ]]; then
+  echo "  running: bash $BASH_VERSION ($$: $(command -v bash))"
+elif [[ -n "$ZSH_VERSION" ]]; then
+  echo "  running: zsh $ZSH_VERSION ($$: $(command -v zsh))"
+else
+  echo "  running: unknown"
+fi
+echo ""
+
+# Installed shells
+echo "Installed shells:"
+for shell in bash zsh sh dash fish ksh; do
+  while IFS= read -r path; do
+    ver=$("$path" --version 2>/dev/null | head -1) || ver=$("$path" -c 'echo $KSH_VERSION' 2>/dev/null) || ver=""
+    if [[ -n "$ver" ]]; then
+      echo "  $path — $ver"
+    else
+      echo "  $path"
+    fi
+  done < <(which -a "$shell" 2>/dev/null)
+done
+echo ""
+
+# Tools chicle depends on
+echo "Dependencies:"
+for cmd in tput stty; do
+  if command -v "$cmd" &>/dev/null; then
+    echo "  $cmd: $(command -v "$cmd")"
+  else
+    echo "  $cmd: NOT FOUND"
+  fi
+done
