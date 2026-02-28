@@ -339,15 +339,20 @@ chicle_choose() {
   local key=""
   while true; do
     # Read a keypress, with timeout so ctrl-c interrupt flag is checked.
-    # bash's read restarts after signal traps (SA_RESTART), so without a
-    # timeout, ctrl-c sets the flag but read blocks until the next keypress.
+    # Both bash and zsh restart read after signal traps (SA_RESTART), so
+    # without a timeout, ctrl-c sets the flag but read blocks until the
+    # next keypress. Polling with read -t lets us check the flag.
     key=""
     if [[ -n "$ZSH_VERSION" ]]; then
-      read -rsk1 key </dev/tty
+      while [[ -z "$_chicle_interrupted" ]]; do
+        if read -rsk1 -t "$_chicle_read_timeout" key </dev/tty; then
+          break  # zsh: 0 = got input, 1 = timeout
+        fi
+      done
     else
       while [[ -z "$_chicle_interrupted" ]]; do
         IFS= read -rsn1 -t "$_chicle_read_timeout" key </dev/tty
-        [[ $? -le 128 ]] && break  # got input (not a timeout)
+        [[ $? -le 128 ]] && break  # bash: 0 = got input, >128 = timeout
       done
     fi
     [[ -n "$_chicle_interrupted" ]] && break

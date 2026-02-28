@@ -454,6 +454,18 @@ expect_available() {
 # ctrl-c tests (expect)
 # ============================================================================
 
+@test "choose: menu waits for input (no auto-select on timeout)" {
+  if ! expect_available; then skip "expect or perl not found"; fi
+  output=$(expect -c '
+    spawn bash -c "source '"$BATS_TEST_DIRNAME"'/../../chicle.sh; chicle_choose A B C"
+    expect "❯"
+    sleep 0.5
+    send "\033\[B\r"
+    expect eof
+  ' 2>&1 | clean_output | tail -1)
+  [ "$output" = "B" ]
+}
+
 @test "choose: ctrl-c returns 130" {
   if ! expect_available; then skip "expect or perl not found"; fi
   expect -c '
@@ -540,4 +552,39 @@ zsh_expect_available() {
     expect eof
   ' 2>&1 | clean_output | tail -1)
   [ "$output" = "secret" ]
+}
+
+@test "zsh: menu waits for input (no auto-select on timeout)" {
+  if ! zsh_expect_available; then skip "expect, perl, or zsh not found"; fi
+  output=$(expect -c '
+    spawn zsh -c "source '"$BATS_TEST_DIRNAME"'/../../chicle.sh; chicle_choose A B C"
+    expect "❯"
+    sleep 0.5
+    send "\033\[B\r"
+    expect eof
+  ' 2>&1 | clean_output | tail -1)
+  [ "$output" = "B" ]
+}
+
+@test "zsh: ctrl-c returns 130" {
+  if ! zsh_expect_available; then skip "expect, perl, or zsh not found"; fi
+  expect -c '
+    spawn zsh -c "source '"$BATS_TEST_DIRNAME"'/../../chicle.sh; chicle_choose A B C; echo EXIT:\$?"
+    expect "❯"
+    send "\x03"
+    expect "EXIT:"
+    expect eof
+  ' 2>&1 | clean_output | grep -q "EXIT:130"
+}
+
+@test "zsh: --var ctrl-c does not kill parent" {
+  if ! zsh_expect_available; then skip "expect, perl, or zsh not found"; fi
+  output=$(expect -c '
+    spawn zsh -c "source '"$BATS_TEST_DIRNAME"'/../../chicle.sh; chicle_choose --var RESULT A B C; echo SURVIVED:\$?"
+    expect "❯"
+    send "\x03"
+    expect "SURVIVED:"
+    expect eof
+  ' 2>&1 | clean_output | grep "^SURVIVED:")
+  [ "$output" = "SURVIVED:130" ]
 }
