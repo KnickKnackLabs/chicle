@@ -451,6 +451,57 @@ expect_available() {
 }
 
 # ============================================================================
+# ctrl-c tests (expect)
+# ============================================================================
+
+@test "choose: ctrl-c returns 130" {
+  if ! expect_available; then skip "expect or perl not found"; fi
+  expect -c '
+    spawn bash -c "source '"$BATS_TEST_DIRNAME"'/../../chicle.sh; chicle_choose A B C; echo EXIT:\$?"
+    expect "❯"
+    send "\x03"
+    expect "EXIT:"
+    expect eof
+  ' 2>&1 | clean_output | grep -q "EXIT:130"
+}
+
+@test "choose: ctrl-c restores terminal state" {
+  if ! expect_available; then skip "expect or perl not found"; fi
+  expect -c '
+    spawn bash -c "source '"$BATS_TEST_DIRNAME"'/../../chicle.sh; chicle_choose A B C; stty -a </dev/tty"
+    expect "❯"
+    send "\x03"
+    expect eof
+  ' 2>&1 | clean_output > "$BATS_TMPDIR/tty_state"
+  # echo and icanon should be restored (not prefixed with -)
+  ! grep -qE '(^|[[:space:]])-echo([[:space:]]|$)' "$BATS_TMPDIR/tty_state"
+  ! grep -qE '(^|[[:space:]])-icanon([[:space:]]|$)' "$BATS_TMPDIR/tty_state"
+}
+
+@test "choose: --var sets variable on selection" {
+  if ! expect_available; then skip "expect or perl not found"; fi
+  output=$(expect -c '
+    spawn bash -c "source '"$BATS_TEST_DIRNAME"'/../../chicle.sh; chicle_choose --var RESULT A B C; echo RESULT:\$RESULT"
+    expect "❯"
+    send "\033\[B\r"
+    expect eof
+  ' 2>&1 | clean_output | grep "^RESULT:")
+  [ "$output" = "RESULT:B" ]
+}
+
+@test "choose: --var ctrl-c does not kill parent" {
+  if ! expect_available; then skip "expect or perl not found"; fi
+  output=$(expect -c '
+    spawn bash -c "source '"$BATS_TEST_DIRNAME"'/../../chicle.sh; chicle_choose --var RESULT A B C; echo SURVIVED:\$?"
+    expect "❯"
+    send "\x03"
+    expect "SURVIVED:"
+    expect eof
+  ' 2>&1 | clean_output | grep "^SURVIVED:")
+  [ "$output" = "SURVIVED:130" ]
+}
+
+# ============================================================================
 # Zsh interactive tests (expect)
 # ============================================================================
 
