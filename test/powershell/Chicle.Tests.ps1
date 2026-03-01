@@ -242,3 +242,85 @@ Describe "Chicle-Progress" {
         }
     }
 }
+
+Describe "Chicle-File" {
+    BeforeEach {
+        $script:testRoot = Join-Path ([System.IO.Path]::GetTempPath()) "chicle_file_test_$([guid]::NewGuid().ToString('N'))"
+        New-Item -ItemType Directory -Path $script:testRoot -Force | Out-Null
+        New-Item -ItemType Directory -Path (Join-Path $script:testRoot "alpha") -Force | Out-Null
+        New-Item -ItemType Directory -Path (Join-Path $script:testRoot "alpha" "nested") -Force | Out-Null
+        New-Item -ItemType Directory -Path (Join-Path $script:testRoot "beta") -Force | Out-Null
+        "x" | Set-Content (Join-Path $script:testRoot "file1.txt")
+        "x" | Set-Content (Join-Path $script:testRoot "file2.sh")
+        "x" | Set-Content (Join-Path $script:testRoot "alpha" "inner.txt")
+        $global:chicleFileMockCount = 0
+    }
+
+    AfterEach {
+        Remove-Item -Recurse -Force $script:testRoot -ErrorAction SilentlyContinue
+    }
+
+    It "selects a file" {
+        Mock Chicle-Choose { "file1.txt" } -ModuleName chicle
+        $result = Chicle-File -Path $script:testRoot
+        $result | Should -BeExactly (Join-Path $script:testRoot "file1.txt")
+    }
+
+    It "navigates into directory and selects" {
+        Mock Chicle-Choose {
+            $global:chicleFileMockCount++
+            if ($global:chicleFileMockCount -eq 1) { "alpha/" }
+            else { "inner.txt" }
+        } -ModuleName chicle
+        $result = Chicle-File -Path $script:testRoot
+        $result | Should -BeExactly (Join-Path $script:testRoot "alpha" "inner.txt")
+    }
+
+    It "navigates up with .." {
+        Mock Chicle-Choose {
+            $global:chicleFileMockCount++
+            if ($global:chicleFileMockCount -eq 1) { ".." }
+            else { "file1.txt" }
+        } -ModuleName chicle
+        $result = Chicle-File -Path (Join-Path $script:testRoot "alpha")
+        $result | Should -BeExactly (Join-Path $script:testRoot "file1.txt")
+    }
+
+    It "returns null on quit" {
+        Mock Chicle-Choose { $null } -ModuleName chicle
+        $result = Chicle-File -Path $script:testRoot
+        $result | Should -BeNullOrEmpty
+    }
+
+    It "filters files with -Filter" {
+        Mock Chicle-Choose {
+            param([string]$Header, [string[]]$Options)
+            $Options | Should -Contain "file1.txt"
+            $Options | Should -Not -Contain "file2.sh"
+            "file1.txt"
+        } -ModuleName chicle
+        $result = Chicle-File -Path $script:testRoot -Filter "*.txt"
+        $result | Should -BeExactly (Join-Path $script:testRoot "file1.txt")
+    }
+
+    It "dir mode shows . entry and no files" {
+        Mock Chicle-Choose {
+            param([string]$Header, [string[]]$Options)
+            $Options | Should -Contain "."
+            $Options | Should -Not -Contain "file1.txt"
+            $Options | Should -Not -Contain "file2.sh"
+            "."
+        } -ModuleName chicle
+        $result = Chicle-File -Path $script:testRoot -Dir
+        $result | Should -BeExactly $script:testRoot
+    }
+
+    It "shows header in display" {
+        Mock Chicle-Choose {
+            param([string]$Header, [string[]]$Options)
+            $Header | Should -Match "Pick"
+            "file1.txt"
+        } -ModuleName chicle
+        Chicle-File -Path $script:testRoot -Header "Pick" | Out-Null
+    }
+}
