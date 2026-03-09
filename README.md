@@ -39,16 +39,13 @@ Pure bash TUI library for delightful shell scripts. Zero dependencies.
 ### Bash
 
 ```bash
-# From latest release
-curl -fsSL https://github.com/KnickKnackLabs/chicle/releases/latest/download/chicle.sh -o chicle.sh
-source chicle.sh
+source <(curl -fsSL chicle.knacklabs.co/chicle.sh)
 ```
 
 ### PowerShell
 
 ```powershell
-# From latest release
-Invoke-WebRequest https://github.com/KnickKnackLabs/chicle/releases/latest/download/chicle.psm1 -OutFile chicle.psm1
+Invoke-WebRequest chicle.knacklabs.co/chicle.psm1 -OutFile chicle.psm1
 Import-Module ./chicle.psm1
 ```
 
