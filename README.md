@@ -108,9 +108,10 @@ chicle_rule --char "="
 
 ```bash
 #!/usr/bin/env bash
-source chicle.sh
+source <(curl -fsSL chicle.knacklabs.co/chicle.sh)
 
 chicle_style --bold "Welcome to the installer"
+echo
 chicle_rule
 
 name=$(chicle_input --placeholder "Project name")
