@@ -50,8 +50,9 @@ jobs:
       - name: Deploy release artifacts to GitHub Pages
         run: |
           # Switch back to main to update docs/
-          git checkout main
-          git pull origin main
+          # Discard version-injected files from the release step first
+          git checkout -f main
+          git pull --rebase origin main
 
           # Copy versioned artifacts into docs/
           VERSION="${{ steps.version.outputs.version }}"
