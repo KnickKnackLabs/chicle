@@ -641,6 +641,95 @@ function Chicle-Progress {
     Write-Host -NoNewline $formatted
 }
 
+function Chicle-File {
+    <#
+    .SYNOPSIS
+    Interactive file picker with directory navigation.
+    .EXAMPLE
+    $file = Chicle-File -Filter "*.json" -Path "/etc"
+    .EXAMPLE
+    $dir = Chicle-File -Dir -Header "Choose install directory"
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [string]$Header = "",
+        [switch]$Dir,
+        [string]$Filter = "",
+        [string]$Path = "."
+    )
+
+    $currentDir = (Resolve-Path $Path).Path
+
+    while ($true) {
+        $entries = [System.Collections.Generic.List[string]]::new()
+
+        # .. to go up (unless at filesystem root)
+        $root = [System.IO.Path]::GetPathRoot($currentDir)
+        if ($currentDir -ne $root) {
+            $entries.Add("..")
+        }
+
+        # . to select current directory (Dir mode only)
+        if ($Dir) {
+            $entries.Add(".")
+        }
+
+        # Subdirectories (alphabetical, skip hidden)
+        $dirs = Get-ChildItem -Path $currentDir -Directory -ErrorAction SilentlyContinue |
+            Where-Object { -not $_.Name.StartsWith(".") } |
+            Sort-Object Name
+        foreach ($d in $dirs) {
+            $entries.Add("$($d.Name)/")
+        }
+
+        # Files (alphabetical, skip hidden, apply filter unless Dir mode)
+        if (-not $Dir) {
+            $fileParams = @{
+                Path = $currentDir
+                File = $true
+                ErrorAction = 'SilentlyContinue'
+            }
+            if ($Filter) { $fileParams['Filter'] = $Filter }
+            $files = Get-ChildItem @fileParams |
+                Where-Object { -not $_.Name.StartsWith(".") } |
+                Sort-Object Name
+            foreach ($f in $files) {
+                $entries.Add($f.Name)
+            }
+        }
+
+        # Nothing to show
+        if ($entries.Count -eq 0) { return $null }
+
+        # Header: optional user text + current path
+        $displayHeader = if ($Header) { "$Header $([char]0x2014) $currentDir" } else { $currentDir }
+
+        $selection = Chicle-Choose -Header $displayHeader -Options $entries.ToArray()
+
+        # Quit or interrupt
+        if ($null -eq $selection) { return $null }
+
+        switch -Exact ($selection) {
+            ".." {
+                $currentDir = Split-Path $currentDir -Parent
+            }
+            "." {
+                return $currentDir
+            }
+            default {
+                if ($selection.EndsWith("/")) {
+                    # Directory: descend
+                    $currentDir = Join-Path $currentDir $selection.TrimEnd("/")
+                } else {
+                    # File: select
+                    return (Join-Path $currentDir $selection)
+                }
+            }
+        }
+    }
+}
+
 Export-ModuleMember -Function @(
     'Chicle-Style',
     'Chicle-Input',
@@ -651,5 +740,6 @@ Export-ModuleMember -Function @(
     'Chicle-Log',
     'Chicle-Steps',
     'Chicle-Table',
-    'Chicle-Progress'
+    'Chicle-Progress',
+    'Chicle-File'
 )
