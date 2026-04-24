@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #MISE description="Show environment details relevant to chicle"
-set -uo pipefail
+set -euo pipefail
 
 echo "OS:      $(uname -s) $(uname -r) ($(uname -m))"
 echo "TERM:    ${TERM:-<unset>}"
