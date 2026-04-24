@@ -695,21 +695,37 @@ chicle_progress() {
 
 # Interactive file picker
 # Usage: chicle_file [--header TEXT] [--dir] [--filter GLOB] [--path DIR] [--var VARNAME]
+#
+# --filter applies to files only; directories are always shown so the user
+# can navigate freely. Globbing is case-sensitive (bash default).
 chicle_file() {
   local header="" dir_only="" filter="" dir="" _chicle_var=""
   while [[ $# -gt 0 ]]; do
     case $1 in
-      --header) header="$2"; shift 2 ;;
+      --header)
+        [[ $# -ge 2 ]] || { echo "chicle_file: --header requires a value" >&2; return 2; }
+        header="$2"; shift 2 ;;
       --dir) dir_only=1; shift ;;
-      --filter) filter="$2"; shift 2 ;;
-      --path) dir="$2"; shift 2 ;;
-      --var) _chicle_var="$2"; shift 2 ;;
-      *) shift ;;
+      --filter)
+        [[ $# -ge 2 ]] || { echo "chicle_file: --filter requires a value" >&2; return 2; }
+        filter="$2"; shift 2 ;;
+      --path)
+        [[ $# -ge 2 ]] || { echo "chicle_file: --path requires a value" >&2; return 2; }
+        dir="$2"; shift 2 ;;
+      --var)
+        [[ $# -ge 2 ]] || { echo "chicle_file: --var requires a value" >&2; return 2; }
+        _chicle_var="$2"; shift 2 ;;
+      *) echo "chicle_file: unknown argument: $1" >&2; return 2 ;;
     esac
   done
 
   # Default to current directory, resolve to absolute path
-  dir="$(cd "${dir:-.}" && pwd)" || return 1
+  local _path_input="${dir:-.}"
+  if [[ ! -d "$_path_input" ]]; then
+    echo "chicle_file: no such directory: $_path_input" >&2
+    return 1
+  fi
+  dir="$(cd "$_path_input" && pwd)"
 
   while true; do
     local entries=() entry

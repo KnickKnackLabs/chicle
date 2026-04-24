@@ -594,8 +594,8 @@ zsh_expect_available() {
 # ============================================================================
 
 _setup_file_tree() {
-  local root="$BATS_TMPDIR/chicle_file_$$_$RANDOM"
-  rm -rf "$root"
+  # Use $BATS_TEST_TMPDIR so BATS auto-cleans after each test
+  local root="$BATS_TEST_TMPDIR/chicle_file"
   mkdir -p "$root/alpha/nested" "$root/beta"
   echo "x" > "$root/file1.txt"
   echo "x" > "$root/file2.sh"
@@ -617,7 +617,6 @@ _setup_file_tree() {
     expect eof
   ' 2>&1 | clean_output | tail -1)
   [ "$output" = "$root/file1.txt" ]
-  rm -rf "$root"
 }
 
 @test "file: navigate into directory and select" {
@@ -637,7 +636,6 @@ _setup_file_tree() {
     expect eof
   ' 2>&1 | clean_output | tail -1)
   [ "$output" = "$root/alpha/inner.txt" ]
-  rm -rf "$root"
 }
 
 @test "file: navigate up with .." {
@@ -657,7 +655,6 @@ _setup_file_tree() {
     expect eof
   ' 2>&1 | clean_output | tail -1)
   [ "$output" = "$root/file1.txt" ]
-  rm -rf "$root"
 }
 
 @test "file: q returns exit code 1" {
@@ -671,7 +668,6 @@ _setup_file_tree() {
     expect "EXIT:"
     expect eof
   ' 2>&1 | clean_output | grep -q "EXIT:1"
-  rm -rf "$root"
 }
 
 @test "file: ctrl-c returns exit code 130" {
@@ -685,7 +681,6 @@ _setup_file_tree() {
     expect "EXIT:"
     expect eof
   ' 2>&1 | clean_output | grep -q "EXIT:130"
-  rm -rf "$root"
 }
 
 @test "file: --filter shows only matching files" {
@@ -702,7 +697,6 @@ _setup_file_tree() {
     expect eof
   ' 2>&1 | clean_output | tail -1)
   [ "$output" = "$root/file1.txt" ]
-  rm -rf "$root"
 }
 
 @test "file: --dir mode select current directory" {
@@ -718,7 +712,6 @@ _setup_file_tree() {
     expect eof
   ' 2>&1 | clean_output | tail -1)
   [ "$output" = "$root" ]
-  rm -rf "$root"
 }
 
 @test "file: --dir mode navigate and select" {
@@ -738,7 +731,6 @@ _setup_file_tree() {
     expect eof
   ' 2>&1 | clean_output | tail -1)
   [ "$output" = "$root/alpha" ]
-  rm -rf "$root"
 }
 
 @test "file: --header shown in display" {
@@ -753,7 +745,6 @@ _setup_file_tree() {
     expect eof
   ' 2>&1 | clean_output | tail -1)
   [ "$output" = "$root/file1.txt" ]
-  rm -rf "$root"
 }
 
 @test "file: --var sets variable" {
@@ -768,5 +759,22 @@ _setup_file_tree() {
     expect eof
   ' 2>&1 | clean_output | grep "^RESULT:")
   [ "$output" = "RESULT:$root/file1.txt" ]
-  rm -rf "$root"
+}
+
+@test "file: unknown argument errors with exit 2" {
+  run chicle_file --fiter "*.txt"
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"unknown argument: --fiter"* ]]
+}
+
+@test "file: --header without value errors with exit 2" {
+  run chicle_file --header
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"--header requires a value"* ]]
+}
+
+@test "file: --path to nonexistent directory errors with exit 1" {
+  run chicle_file --path /nonexistent-chicle-path-$$
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"no such directory"* ]]
 }

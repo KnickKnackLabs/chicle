@@ -645,6 +645,10 @@ function Chicle-File {
     <#
     .SYNOPSIS
     Interactive file picker with directory navigation.
+    .DESCRIPTION
+    The -Filter argument applies to files only; directories are always shown
+    so the user can navigate freely. -Filter is case-insensitive on Windows
+    and case-sensitive on macOS/Linux (PowerShell native -Filter behaviour).
     .EXAMPLE
     $file = Chicle-File -Filter "*.json" -Path "/etc"
     .EXAMPLE
