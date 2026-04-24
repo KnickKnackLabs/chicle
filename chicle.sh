@@ -692,3 +692,109 @@ chicle_progress() {
   # Print with \r to update in place (no newline)
   printf "\r%s %b[%s]%b %3d%%" "$title" "$color" "$bar" "$CHICLE_RESET" "$percent"
 }
+
+# Interactive file picker
+# Usage: chicle_file [--header TEXT] [--dir] [--filter GLOB] [--path DIR] [--var VARNAME]
+#
+# --filter applies to files only; directories are always shown so the user
+# can navigate freely. Globbing is case-sensitive (bash default).
+chicle_file() {
+  local header="" dir_only="" filter="" dir="" _chicle_var=""
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      --header)
+        [[ $# -ge 2 ]] || { echo "chicle_file: --header requires a value" >&2; return 2; }
+        header="$2"; shift 2 ;;
+      --dir) dir_only=1; shift ;;
+      --filter)
+        [[ $# -ge 2 ]] || { echo "chicle_file: --filter requires a value" >&2; return 2; }
+        filter="$2"; shift 2 ;;
+      --path)
+        [[ $# -ge 2 ]] || { echo "chicle_file: --path requires a value" >&2; return 2; }
+        dir="$2"; shift 2 ;;
+      --var)
+        [[ $# -ge 2 ]] || { echo "chicle_file: --var requires a value" >&2; return 2; }
+        _chicle_var="$2"; shift 2 ;;
+      *) echo "chicle_file: unknown argument: $1" >&2; return 2 ;;
+    esac
+  done
+
+  # Default to current directory, resolve to absolute path
+  local _path_input="${dir:-.}"
+  if [[ ! -d "$_path_input" ]]; then
+    echo "chicle_file: no such directory: $_path_input" >&2
+    return 1
+  fi
+  dir="$(cd "$_path_input" && pwd)"
+
+  while true; do
+    local entries=() entry
+
+    # .. to go up (unless at filesystem root)
+    [[ "$dir" != "/" ]] && entries+=("..")
+
+    # . to select current directory (--dir mode only)
+    [[ -n "$dir_only" ]] && entries+=(".")
+
+    # Subdirectories (alphabetical, skip hidden)
+    for entry in "$dir"/*/; do
+      [[ -d "$entry" ]] && entries+=("$(basename "$entry")/")
+    done
+
+    # Files (alphabetical, skip hidden, apply filter unless --dir)
+    if [[ -z "$dir_only" ]]; then
+      if [[ -n "$filter" ]]; then
+        # shellcheck disable=SC2086
+        for entry in "$dir"/$filter; do
+          [[ -f "$entry" ]] && entries+=("$(basename "$entry")")
+        done
+      else
+        for entry in "$dir"/*; do
+          [[ -f "$entry" ]] && entries+=("$(basename "$entry")")
+        done
+      fi
+    fi
+
+    # Nothing to show (empty root directory)
+    [[ ${#entries[@]} -eq 0 ]] && return 1
+
+    # Header: optional user text + current path
+    local display_header
+    if [[ -n "$header" ]]; then
+      display_header="$header — $dir"
+    else
+      display_header="$dir"
+    fi
+
+    local _chicle_selection=""
+    chicle_choose --header "$display_header" --var _chicle_selection "${entries[@]}"
+    local rc=$?
+    [[ $rc -ne 0 ]] && return $rc
+
+    case "$_chicle_selection" in
+      "..")
+        dir="$(dirname "$dir")"
+        ;;
+      ".")
+        if [[ -n "$_chicle_var" ]]; then
+          printf -v "$_chicle_var" '%s' "$dir"
+        else
+          echo "$dir"
+        fi
+        return 0
+        ;;
+      */)
+        dir="$dir/${_chicle_selection%/}"
+        ;;
+      *)
+        local _chicle_result="$dir/$_chicle_selection"
+        if [[ -n "$_chicle_var" ]]; then
+          printf -v "$_chicle_var" '%s' "$_chicle_result"
+        else
+          echo "$_chicle_result"
+        fi
+        return 0
+        ;;
+    esac
+  done
+}

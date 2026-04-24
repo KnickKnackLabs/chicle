@@ -588,3 +588,193 @@ zsh_expect_available() {
   ' 2>&1 | clean_output | grep "^SURVIVED:")
   [ "$output" = "SURVIVED:130" ]
 }
+
+# ============================================================================
+# chicle_file — interactive file picker tests (expect)
+# ============================================================================
+
+_setup_file_tree() {
+  # Use $BATS_TEST_TMPDIR so BATS auto-cleans after each test
+  local root="$BATS_TEST_TMPDIR/chicle_file"
+  mkdir -p "$root/alpha/nested" "$root/beta"
+  echo "x" > "$root/file1.txt"
+  echo "x" > "$root/file2.sh"
+  echo "x" > "$root/alpha/inner.txt"
+  echo "x" > "$root/alpha/nested/deep.txt"
+  echo "$root"
+}
+
+@test "file: select a file" {
+  if ! expect_available; then skip "expect or perl not found"; fi
+  local root
+  root=$(_setup_file_tree)
+  # Menu: .., alpha/, beta/, file1.txt, file2.sh
+  # down 3x → file1.txt, enter
+  output=$(expect -c '
+    spawn bash -c "source '"$BATS_TEST_DIRNAME"'/../../chicle.sh; chicle_file --path '"$root"'"
+    expect "❯"
+    send "\033\[B\033\[B\033\[B\r"
+    expect eof
+  ' 2>&1 | clean_output | tail -1)
+  [ "$output" = "$root/file1.txt" ]
+}
+
+@test "file: navigate into directory and select" {
+  if ! expect_available; then skip "expect or perl not found"; fi
+  local root
+  root=$(_setup_file_tree)
+  # Menu: .., alpha/, beta/, file1.txt, file2.sh
+  # down 1x → alpha/, enter
+  # New menu: .., nested/, inner.txt
+  # down 2x → inner.txt, enter
+  output=$(expect -c '
+    spawn bash -c "source '"$BATS_TEST_DIRNAME"'/../../chicle.sh; chicle_file --path '"$root"'"
+    expect "❯"
+    send "\033\[B\r"
+    expect "❯"
+    send "\033\[B\033\[B\r"
+    expect eof
+  ' 2>&1 | clean_output | tail -1)
+  [ "$output" = "$root/alpha/inner.txt" ]
+}
+
+@test "file: navigate up with .." {
+  if ! expect_available; then skip "expect or perl not found"; fi
+  local root
+  root=$(_setup_file_tree)
+  # Start in alpha: .., nested/, inner.txt
+  # enter on .. (cursor starts there) → back to root
+  # Menu: .., alpha/, beta/, file1.txt, file2.sh
+  # down 3x → file1.txt, enter
+  output=$(expect -c '
+    spawn bash -c "source '"$BATS_TEST_DIRNAME"'/../../chicle.sh; chicle_file --path '"$root/alpha"'"
+    expect "❯"
+    send "\r"
+    expect "❯"
+    send "\033\[B\033\[B\033\[B\r"
+    expect eof
+  ' 2>&1 | clean_output | tail -1)
+  [ "$output" = "$root/file1.txt" ]
+}
+
+@test "file: q returns exit code 1" {
+  if ! expect_available; then skip "expect or perl not found"; fi
+  local root
+  root=$(_setup_file_tree)
+  expect -c '
+    spawn bash -c "source '"$BATS_TEST_DIRNAME"'/../../chicle.sh; chicle_file --path '"$root"'; echo EXIT:\$?"
+    expect "❯"
+    send "q"
+    expect "EXIT:"
+    expect eof
+  ' 2>&1 | clean_output | grep -q "EXIT:1"
+}
+
+@test "file: ctrl-c returns exit code 130" {
+  if ! expect_available; then skip "expect or perl not found"; fi
+  local root
+  root=$(_setup_file_tree)
+  expect -c '
+    spawn bash -c "source '"$BATS_TEST_DIRNAME"'/../../chicle.sh; chicle_file --path '"$root"'; echo EXIT:\$?"
+    expect "❯"
+    send "\x03"
+    expect "EXIT:"
+    expect eof
+  ' 2>&1 | clean_output | grep -q "EXIT:130"
+}
+
+@test "file: --filter shows only matching files" {
+  if ! expect_available; then skip "expect or perl not found"; fi
+  local root
+  root=$(_setup_file_tree)
+  # Menu with --filter *.txt: .., alpha/, beta/, file1.txt
+  # (file2.sh is filtered out)
+  # down 3x → file1.txt, enter
+  output=$(expect -c '
+    spawn bash -c "source '"$BATS_TEST_DIRNAME"'/../../chicle.sh; chicle_file --path '"$root"' --filter \"*.txt\""
+    expect "❯"
+    send "\033\[B\033\[B\033\[B\r"
+    expect eof
+  ' 2>&1 | clean_output | tail -1)
+  [ "$output" = "$root/file1.txt" ]
+}
+
+@test "file: --dir mode select current directory" {
+  if ! expect_available; then skip "expect or perl not found"; fi
+  local root
+  root=$(_setup_file_tree)
+  # Menu: .., ., alpha/, beta/
+  # down 1x → ., enter
+  output=$(expect -c '
+    spawn bash -c "source '"$BATS_TEST_DIRNAME"'/../../chicle.sh; chicle_file --dir --path '"$root"'"
+    expect "❯"
+    send "\033\[B\r"
+    expect eof
+  ' 2>&1 | clean_output | tail -1)
+  [ "$output" = "$root" ]
+}
+
+@test "file: --dir mode navigate and select" {
+  if ! expect_available; then skip "expect or perl not found"; fi
+  local root
+  root=$(_setup_file_tree)
+  # Menu: .., ., alpha/, beta/
+  # down 2x → alpha/, enter (descend)
+  # New menu: .., ., nested/
+  # down 1x → ., enter (select alpha)
+  output=$(expect -c '
+    spawn bash -c "source '"$BATS_TEST_DIRNAME"'/../../chicle.sh; chicle_file --dir --path '"$root"'"
+    expect "❯"
+    send "\033\[B\033\[B\r"
+    expect "❯"
+    send "\033\[B\r"
+    expect eof
+  ' 2>&1 | clean_output | tail -1)
+  [ "$output" = "$root/alpha" ]
+}
+
+@test "file: --header shown in display" {
+  if ! expect_available; then skip "expect or perl not found"; fi
+  local root
+  root=$(_setup_file_tree)
+  # Verify header appears, then select file1.txt
+  output=$(expect -c '
+    spawn bash -c "source '"$BATS_TEST_DIRNAME"'/../../chicle.sh; chicle_file --header \"Pick\" --path '"$root"'"
+    expect "Pick"
+    send "\033\[B\033\[B\033\[B\r"
+    expect eof
+  ' 2>&1 | clean_output | tail -1)
+  [ "$output" = "$root/file1.txt" ]
+}
+
+@test "file: --var sets variable" {
+  if ! expect_available; then skip "expect or perl not found"; fi
+  local root
+  root=$(_setup_file_tree)
+  output=$(expect -c '
+    spawn bash -c "source '"$BATS_TEST_DIRNAME"'/../../chicle.sh; chicle_file --var RESULT --path '"$root"'; echo RESULT:\$RESULT"
+    expect "❯"
+    send "\033\[B\033\[B\033\[B\r"
+    expect "RESULT:"
+    expect eof
+  ' 2>&1 | clean_output | grep "^RESULT:")
+  [ "$output" = "RESULT:$root/file1.txt" ]
+}
+
+@test "file: unknown argument errors with exit 2" {
+  run chicle_file --fiter "*.txt"
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"unknown argument: --fiter"* ]]
+}
+
+@test "file: --header without value errors with exit 2" {
+  run chicle_file --header
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"--header requires a value"* ]]
+}
+
+@test "file: --path to nonexistent directory errors with exit 1" {
+  run chicle_file --path /nonexistent-chicle-path-$$
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"no such directory"* ]]
+}
