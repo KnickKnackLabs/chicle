@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 #MISE description="Run ShellCheck on chicle.sh"
+set -euo pipefail
 
-set -e
-
-shellcheck chicle.sh
+shellcheck "$MISE_CONFIG_ROOT/chicle.sh"

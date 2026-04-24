@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 #MISE description="Run interactive TUI tests (requires a terminal)"
+set -euo pipefail
 
-set -eo pipefail
-
-source chicle.sh
+source "$MISE_CONFIG_ROOT/chicle.sh"
 
 pass=0
 fail=0

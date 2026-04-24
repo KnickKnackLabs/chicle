@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
 #MISE description="Run zsh-specific BATS tests"
-
-set -e
+set -euo pipefail
 
 if ! command -v zsh &>/dev/null; then
   echo "zsh not found, skipping"
   exit 0
 fi
 
-bats --filter "zsh" test/bash/
+bats --filter "zsh" "$MISE_CONFIG_ROOT/test/bash/"
