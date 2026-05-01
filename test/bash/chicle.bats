@@ -484,10 +484,10 @@ expect_available() {
     expect "❯"
     send "\x03"
     expect eof
-  ' 2>&1 | clean_output > "$BATS_TMPDIR/tty_state"
+  ' 2>&1 | clean_output > "$BATS_TEST_TMPDIR/tty_state"
   # echo and icanon should be restored (not prefixed with -)
-  ! grep -qE '(^|[[:space:]])-echo([[:space:]]|$)' "$BATS_TMPDIR/tty_state"
-  ! grep -qE '(^|[[:space:]])-icanon([[:space:]]|$)' "$BATS_TMPDIR/tty_state"
+  ! grep -qE '(^|[[:space:]])-echo([[:space:]]|$)' "$BATS_TEST_TMPDIR/tty_state"
+  ! grep -qE '(^|[[:space:]])-icanon([[:space:]]|$)' "$BATS_TEST_TMPDIR/tty_state"
 }
 
 @test "choose: --var sets variable on selection" {
